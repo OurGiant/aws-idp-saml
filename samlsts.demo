@@ -1,0 +1,11 @@
+[Fed-PING]
+loginpage=https://ping.companydom.com/idp/startSSO.ping?PartnerSpId=urn:amazon:webservices
+
+[cloud1-prod]
+awsRegion = us-east-1
+accountNumber = 123456789123
+IAMRole = PING-BOFH
+samlProvider = Fed-PING
+username=juser
+guiName=production
+
