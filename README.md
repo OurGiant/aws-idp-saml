@@ -365,6 +365,9 @@ If you have issues please create an issue on the project for review. [https://gi
 - using firefox in Ubuntu when browser installed with snap package management. There are several methods to work around this, you can also install chrome and use the chrome driver.
 - Chrome browser update will cause a driver-out-of-date error to occur. The driver must be manually updated.
 
+## To Do
+- check and pull the latest chrome driver
+
 ## System Information
 
 The utility was developed on Windows and Linux, with testing support provided by users on macOS.
