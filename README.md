@@ -367,6 +367,7 @@ If you have issues please create an issue on the project for review. [https://gi
 
 ## To Do
 - check and pull the latest chrome driver
+- better table layout for textmenu
 
 ## System Information
 
