@@ -93,6 +93,16 @@ accountThe ***samlsts** configuration file will need to be configured with a min
 
 ***[Fed-OKTA]***
 
+The provider block must also contain the following parameters
+- loginpage - This is the page provided by your IdP administrator which allows you direct access to the AWS application in your IdP
+- loginTitle - This is the HTML title of the login page. 
+
+```ini
+[Fed-PING]
+loginpage=https://login.company.com/idp/startSSO.ping?PartnerSpId=urn:amazon:webservices
+loginTitle=Sign On
+```
+
 This utility supports PING and OKTA as Identity Providers. Additional identity providers can be configured, see [Additional Identity Providers](#additional-indentity-providers) for details.
 
 
@@ -106,7 +116,7 @@ The utility can be run in either ***full-configuration*** mode using the **samls
 ***required parameters:***
 
 ```shell
-python getCredentials.py -profilename PROFILENAME --browser BROWSER
+python getCredentials.py --profilename PROFILENAME --browser BROWSER
 ```
 
 ```bash
