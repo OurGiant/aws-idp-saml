@@ -120,6 +120,8 @@ class Arguments:
 
         if not self.args.duration:
             self.session_duration = 0
+        else:
+            self.session_duration = self.args.duration
 
         self.use_debug = self.args.debug
         self.use_gui = self.args.gui
@@ -200,7 +202,6 @@ class CustomFormatter(logging.Formatter):
     is_xterm = os_info.display_info()
 
     if is_xterm is True:
-        print("formatting for xterm")
         FORMATS = {
             logging.DEBUG: linux_grey + format + linux_reset,
             logging.INFO: linux_green + format + linux_reset,
