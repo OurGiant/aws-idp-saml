@@ -27,7 +27,8 @@ def main():
         saml_provider_name, idp_login_title, gui_name = config.read_config(aws_profile_name,
                                                                            text_menu, use_idp, arg_username)
 
-    aws_region, aws_session_duration = Config.get_aws_variables(config_aws_region, config_session_duration, arg_aws_region, arg_session_duration)
+    aws_region, aws_session_duration = Config.get_aws_variables(config_aws_region, config_session_duration,
+                                                                arg_aws_region, arg_session_duration)
 
     pass_key, pass_file = config.return_stored_pass_config()
 
@@ -75,10 +76,14 @@ def main():
         selected_role = SAMLSelector.select_role_from_text_menu(all_roles, table_object)
         role_arn = selected_role['arn']
         principle_arn = selected_role['principle']
-        if aws_profile_name == "None":
-            profile_name = selected_role['rolename']
-        else:
-            profile_name = aws_profile_name
+        profile_name = selected_role['rolename']
+        try:
+            account_name = selected_role['account_name']
+        except KeyError:
+            account_name = selected_role['account_number']
+    else:
+        profile_name = aws_profile_name
+        account_name = gui_name
 
     get_sts = STS.aws_assume_role(aws_region, role_arn, principle_arn, saml_response, aws_session_duration)
 
@@ -95,7 +100,7 @@ def main():
         aws_user_id = STS.get_aws_caller_id(profile_name)
 
         sts_expires_local_time: str = sts_expiration.strftime("%c")
-        log_stream.info('Token issued for ' + aws_user_id + ' in account ')
+        log_stream.info('Token issued for ' + aws_user_id + ' in account '+ account_name)
         log_stream.info('Token will expire at ' + sts_expires_local_time)
 
         print(f'\n{profile_block}\n')

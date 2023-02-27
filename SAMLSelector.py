@@ -73,18 +73,20 @@ def get_roles_from_saml_response(saml_response, account_map):
                         table_object.append([role_id, account_number, account_name, role_name])
 
                     if use_account_name is True:
-                        selector_object = {"id": role_id, "arn": role_arn, "account": account_number, "name": role_name,
-                                           "principle": principle_arn, "rolename": account_name + '-' + role_name}
+                        selector_object = {"id": role_id, "arn": role_arn, "account_number": account_number,
+                                           "name": role_name, "principle": principle_arn,
+                                           "rolename": account_name + '-' + role_name, "account_name": account_name}
                     else:
-                        selector_object = {"id": role_id, "arn": role_arn, "account": account_number, "name": role_name,
-                                           "principle": principle_arn, "rolename": account_number + '-' + role_name}
+                        selector_object = {"id": role_id, "arn": role_arn, "account_number": account_number,
+                                           "name": role_name, "principle": principle_arn,
+                                           "rolename": account_number + '-' + role_name}
                     all_roles.append(selector_object)
                     role_id += 1
     return all_roles, table_object
 
 
 def select_role_from_text_menu(all_roles, table_object):
-    sorted_accounts = sorted(all_roles, key=lambda d: d['account'])
+    sorted_accounts = sorted(all_roles, key=lambda d: d['account_number'])
 
     print(tabulate(table_object, headers='firstrow', tablefmt='fancy_grid'))
     while True:

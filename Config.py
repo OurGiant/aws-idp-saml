@@ -162,15 +162,8 @@ class Config:
         return self.AccountMap
 
     def read_config(self, aws_profile_name, text_menu, use_idp, arg_username):
-        saml_provider = None
-        account_number = None
-        iam_role = None
-        username = None
         gui_name = None
-        first_page = None
-        idp_login_title = None
         session_duration = None
-        saml_provider_name = None
         principle_arn = None
         role_arn = None
         aws_region = None
@@ -186,11 +179,11 @@ class Config:
             try:
                 aws_region = self.configSAML[aws_profile_name]['awsRegion']
             except KeyError:
-                aws_region = "None"
+                aws_region = None
             try:
                 session_duration = self.configSAML[aws_profile_name]['sessionDuration']
             except KeyError:
-                session_duration = "None"
+                session_duration = None
             try:
                 account_number = self.configSAML[aws_profile_name]['accountNumber']
                 iam_role = self.configSAML[aws_profile_name]['IAMRole']
