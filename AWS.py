@@ -40,7 +40,7 @@ class STS:
         except err.ClientError as e:
             error_message = "Error assuming role. Token length: " + str(len(saml_assertion))
             log_stream.critical(error_message)
-            log_stream.info(str(saml_assertion))
+            # log_stream.info(str(saml_assertion))
             log_stream.critical(str(e))
             exit(2)
 

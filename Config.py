@@ -63,7 +63,7 @@ def get_aws_variables(conf_region, conf_duration, arg_aws_region, arg_session_du
         log_stream.info('Defaulting the session duration to one hour')
         log_stream.info('A custom duration may be provided using the config file or the command line argument.')
         aws_session_duration = 3600
-    elif arg_session_duration is None:
+    elif arg_session_duration == 0:
         aws_session_duration = conf_duration
     else:
         aws_session_duration = arg_session_duration
