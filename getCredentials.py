@@ -16,23 +16,29 @@ args = Utilities.Arguments()
 config = Config.Config()
 login = IdPLogin()
 
-use_debug, use_gui, browser_type, aws_profile_name, store_password, \
-    arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
-
 
 def main():
-    driver_executable = config.verify_drivers(browser_type)
+    use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
+        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
-        saml_provider_name, idp_login_title, gui_name = config.read_config(aws_profile_name,
-                                                                           text_menu, use_idp, arg_username)
+        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password \
+        = config.read_config(aws_profile_name, text_menu, use_idp, arg_username)
 
     aws_region, aws_session_duration = Config.get_aws_variables(config_aws_region, config_session_duration,
                                                                 arg_aws_region, arg_session_duration)
 
+    browser_type = arg_browser_type if arg_browser_type is not None else config_browser_type
+    if browser_type is None:
+        log_stream.critical('A browser type must be specified either on the command line'
+                            ' or in the global section in the config file')
+        raise SystemExit(1)
+    else:
+        driver_executable = config.verify_drivers(browser_type)
+
     pass_key, pass_file = config.return_stored_pass_config()
 
-    if store_password is False:
+    if arg_store_password is False and config_store_password is False:
         password = Password.get_password()
         if password == "revoke":
             config.revoke_creds(aws_profile_name)
@@ -58,7 +64,7 @@ def main():
 
     log_stream.info('SAML Response Size: ' + str(len(saml_response)))
     if len(saml_response) < 50:
-        log_stream.critical("Issue with logging into Identity Provider: "+saml_response)
+        log_stream.critical("Issue with logging into Identity Provider: " + saml_response)
         raise SystemExit(1)
 
     if text_menu is True:
@@ -100,7 +106,7 @@ def main():
         aws_user_id = STS.get_aws_caller_id(profile_name)
 
         sts_expires_local_time: str = sts_expiration.strftime("%c")
-        log_stream.info('Token issued for ' + aws_user_id + ' in account '+ account_name)
+        log_stream.info('Token issued for ' + aws_user_id + ' in account ' + account_name)
         log_stream.info('Token will expire at ' + sts_expires_local_time)
 
         print(f'\n{profile_block}\n')
