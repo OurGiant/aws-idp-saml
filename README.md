@@ -87,7 +87,9 @@ You must have either Chrome or Firefox installed on your system for this utility
 The config file found in the project root named **samlsts.demo** will need to be moved to your ***~/.aws*** directory and renamed **samlsts**. 
 If you do not already have the ***~/.aws*** directory you can create it with ```aws configure```, Mock values can be used to create a [default] profile.
 
-accountThe ***samlsts** configuration file will need to be configured with a minimum of one Identity Provider section. The name of the section must contain the prefix 'Fed' and the name of the IDP in uppercase letters.
+
+#### Providers Section
+The ***samlsts** configuration file will need to be configured with a minimum of one Identity Provider section. The name of the section must contain the prefix 'Fed' and the name of the IDP in uppercase letters.
 
 ***[Fed-PING]***
 
@@ -105,6 +107,17 @@ loginTitle=Sign On
 
 This utility supports PING and OKTA as Identity Providers. Additional identity providers can be configured, see [Additional Identity Providers](#additional-indentity-providers) for details.
 
+#### Global Section
+A 'global' parameters block can be added to the configuration file to store values otherwise provided on the command line. Settings specified in this section will be overriden by values in the profile blocks, or on the command line. 
+
+```ini
+[global]
+browser=firefox
+sessionDuration=14400
+savedPassword=true
+username=this.user
+awsRegion=us-east-1
+```
 
 
 The utility can be run in either ***full-configuration*** mode using the **samlsts** configuration file in ~/.aws/ (see [Full Configuration](#full-configuration-mode) or using a text based menu (see [Text Based Menu](#text-menu-mode)) to specify which account to use.
