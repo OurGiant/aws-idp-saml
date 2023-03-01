@@ -224,19 +224,23 @@ notepad $PROFILE
 Add the alias and save the file
 ```powershell
 function getsaml {
+    Push-Location .
 	Set-Location C:\Users\ryanm\Projects\aws-idp-saml
 	Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-	venv\Scripts\activate
+	& "venv\Scripts\activate"
     python .\getCredentials.py --textmenu --idp ping --browser chrome
-	deactivate
+    deactivate
+    Pop-Location
 }
 
 function getsaml($profilename) {
+    Push-Location .
 	Set-Location C:\Users\ryanm\Projects\aws-idp-saml
 	Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-	venv\Scripts\activate
-    python .\getCredentials.py --profilename companyA-admin --browser chrome --storedpw
+	& "venv\Scripts\activate"
+    python getCredentials.py --profilename companyA-admin --browser chrome --storedpw
 	deactivate
+    Pop-Location
 }
 ```
 

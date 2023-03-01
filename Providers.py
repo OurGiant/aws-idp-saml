@@ -14,8 +14,9 @@ log_stream = Utilities.Logging('providers')
 
 saml_page_title = "Amazon Web Services Sign-In"
 xpath_locator = By.XPATH
-css_locator = By.CLASS_NAME
+class_name_locator = By.CLASS_NAME
 id_locator = By.ID
+name_locator = By.NAME
 
 
 class UseIdP:
@@ -41,19 +42,19 @@ class UseIdP:
         """
         global saml_page_title
         # Define XPath selectors for various page elements
-        username_next_button = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/input'
+        username_next_button = 'button-primary'
         select_use_password = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[3]/div[2]/div[2]'
-        password_next_button = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/input'
+        password_next_button = 'button-primary'
         select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[2]/div[2]/div[2]/a'
-        username_field = "input28"
-        password_field = "input95"
+        username_field = "identifier"
+        password_field = "password-with-toggle"
 
-        username_next_button = wait.until(ec.element_to_be_clickable((xpath_locator, username_next_button)))
+        username_next_button = wait.until(ec.element_to_be_clickable((class_name_locator, username_next_button)))
         log_stream.info('Use Okta Login')
         try:
             # Enter the username and click the "Next" button
             log_stream.info('Enter Username')
-            username_dialog = driver.find_element(id_locator, username_field)
+            username_dialog = driver.find_element(name_locator, username_field)
             username_dialog.clear()
             username_dialog.send_keys(username)
             log_stream.info('Click Button')
@@ -76,11 +77,11 @@ class UseIdP:
         try:
             # Enter the password and click the "Next" button
             log_stream.info('Enter Password')
-            password_dialog = wait.until(ec.element_to_be_clickable((id_locator, password_field)))
+            password_dialog = wait.until(ec.element_to_be_clickable((class_name_locator, password_field)))
             password_dialog.clear()
             password_dialog.send_keys(password)
             log_stream.info('Click Button')
-            password_next_button = driver.find_element(xpath_locator, password_next_button)
+            password_next_button = driver.find_element(class_name_locator, password_next_button)
             password_next_button.click()
         except se.NoSuchElementException:
             saml_response = "CouldNotEnterFormData"
@@ -143,7 +144,7 @@ class UseIdP:
         textbox_password = "password"
         button_signon = 'ping-button'
 
-        sign_on_button = wait.until(ec.element_to_be_clickable((css_locator, button_signon)))
+        sign_on_button = wait.until(ec.element_to_be_clickable((class_name_locator, button_signon)))
         log_stream.info('Use Federated Login Page')
         try:
             log_stream.info('Enter Username')
