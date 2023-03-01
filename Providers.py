@@ -14,8 +14,10 @@ log_stream = Utilities.Logging('providers')
 
 saml_page_title = "Amazon Web Services Sign-In"
 xpath_locator = By.XPATH
-css_locator = By.CLASS_NAME
+class_name_locator = By.CLASS_NAME
 id_locator = By.ID
+link_text_locator = By.LINK_TEXT
+name_locator = By.NAME
 
 
 class UseIdP:
@@ -41,19 +43,19 @@ class UseIdP:
         """
         global saml_page_title
         # Define XPath selectors for various page elements
-        username_next_button = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/input'
+        username_next_button = 'button-primary'
         select_use_password = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[3]/div[2]/div[2]'
-        password_next_button = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/input'
+        password_next_button = 'button-primary'
         select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[2]/div[2]/div[2]/a'
-        username_field = "input28"
-        password_field = "input95"
+        username_field = "identifier"
+        password_field = "password-with-toggle"
 
-        username_next_button = wait.until(ec.element_to_be_clickable((xpath_locator, username_next_button)))
+        username_next_button = wait.until(ec.element_to_be_clickable((class_name_locator, username_next_button)))
         log_stream.info('Use Okta Login')
         try:
             # Enter the username and click the "Next" button
             log_stream.info('Enter Username')
-            username_dialog = driver.find_element(id_locator, username_field)
+            username_dialog = driver.find_element(name_locator, username_field)
             username_dialog.clear()
             username_dialog.send_keys(username)
             log_stream.info('Click Button')
@@ -76,11 +78,11 @@ class UseIdP:
         try:
             # Enter the password and click the "Next" button
             log_stream.info('Enter Password')
-            password_dialog = wait.until(ec.element_to_be_clickable((id_locator, password_field)))
+            password_dialog = wait.until(ec.element_to_be_clickable((class_name_locator, password_field)))
             password_dialog.clear()
             password_dialog.send_keys(password)
             log_stream.info('Click Button')
-            password_next_button = driver.find_element(xpath_locator, password_next_button)
+            password_next_button = driver.find_element(class_name_locator, password_next_button)
             password_next_button.click()
         except se.NoSuchElementException:
             saml_response = "CouldNotEnterFormData"
@@ -132,18 +134,20 @@ class UseIdP:
         f any of these actions fail, it returns a message indicating that it could not enter form data.
 
         The function then waits for the SAML page title to load, and if it times out, it attempts to press the
-        enter key in the password field to bypass multi-factor authentication. If that also times out,
+        enter key in the password field to bypass multifactor authentication. If that also times out,
         it logs an error message and saves a screenshot of the failed login for debugging purposes.
 
         Finally, the function returns the 'completed_login' variable which indicates whether the login
         process was completed successfully or not.
         """
         global saml_page_title
-        textbox_username = "username"
-        textbox_password = "password"
+        textbox_username = 'username'
+        textbox_password = 'password'
         button_signon = 'ping-button'
+        button_retry = '.primary'
+        link_retry_mfa = 'Retry mobile'
 
-        sign_on_button = wait.until(ec.element_to_be_clickable((css_locator, button_signon)))
+        sign_on_button = wait.until(ec.element_to_be_clickable((class_name_locator, button_signon)))
         log_stream.info('Use Federated Login Page')
         try:
             log_stream.info('Enter Username')
@@ -163,21 +167,49 @@ class UseIdP:
             saml_response = "CouldNotEnterFormData"
             return saml_response
         try:
-            log_stream.info('Click Button')
+            log_stream.info('Click Sign On Button')
             sign_on_button.click()
         except se.ElementClickInterceptedException:
-            saml_response = "CouldNotEnterFormData"
+            saml_response = "CouldNotClickButton"
             return saml_response
         try:
             completed_login = wait.until(ec.title_is(saml_page_title))
         except se.TimeoutException:
+            sign_in_continue = False
             try:
+                password_dialog = driver.find_element(id_locator, textbox_password)
                 log_stream.info('Button did not respond to click, press enter in password field')
                 password_dialog.send_keys(Keys.ENTER)
-                completed_login = wait.until(ec.title_is(saml_page_title))
-            except se.TimeoutException as mfa_timeout_error:
-                log_stream.info('Timeout waiting for MFA: ' + str(mfa_timeout_error))
-                log_stream.info('Saving screenshot for debugging')
-                screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
-                driver.save_screenshot(screenshot)
+                sign_in_continue = True
+            except se.NoSuchElementException:
+                try:
+                    retry_mfa_button = driver.find_element(class_name_locator, button_retry)
+                    retry_mfa_button.click()
+                    sign_in_continue = True
+                except se.InvalidSelectorException:
+                    try:
+                        retry_mfa_link = driver.find_element(link_text_locator, link_retry_mfa)
+                        retry_mfa_link.click()
+                        sign_in_continue = True
+                    except se.NoSuchElementException as e:
+                        log_stream.critical('Unknown login error')
+                        log_stream.critical(str(e))
+            except se.StaleElementReferenceException:
+                pass
+            finally:
+                if sign_in_continue is True:
+                    try:
+                        completed_login = wait.until(ec.title_is(saml_page_title))
+                    except se.TimeoutException as mfa_timeout_error:
+                        log_stream.info('Timeout waiting for MFA: ' + str(mfa_timeout_error))
+                        log_stream.info('Saving screenshot for debugging')
+                        screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
+                        driver.save_screenshot(screenshot)
+                    except se.StaleElementReferenceException as e:
+                        pass
+                    finally:
+                        saml_response = 'WaitMFATimeout'
+                else:
+                    saml_response = 'WaitMFATimeout'
+
         return completed_login
