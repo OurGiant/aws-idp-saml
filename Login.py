@@ -1,7 +1,6 @@
 # coding=utf-8
 import sys
 import time
-import logging
 from pathlib import Path
 
 from selenium import webdriver
@@ -83,7 +82,7 @@ def browser_login(browser, driver_executable, use_debug, first_page, username, p
 
 class IdPLogin:
     def __init__(self):
-        self.timeout = 20
+        self.timeout = 45
         self.executePath = str(Path(__file__).resolve().parents[0])
         pass
 
