@@ -42,7 +42,8 @@ def validate_aws_cred_format(aws_access_id, aws_secret_key, aws_session_token):
     valid_secret_pattern = re.compile(r'^[a-zA-Z0-9\/+]{30,50}$')
     valid_token_pattern = re.compile(r'^[a-zA-Z0-9\/+]{400,500}$')
 
-    if not (bool(valid_key_pattern.match(aws_access_id)) or bool(valid_secret_pattern.match(aws_secret_key)) or bool(valid_token_pattern.match(aws_session_token))
+    if not (bool(valid_key_pattern.match(aws_access_id)) or bool(valid_secret_pattern.match(aws_secret_key)) or bool(
+            valid_token_pattern.match(aws_session_token))
     ):
         return False
     else:
@@ -167,6 +168,37 @@ class Config:
         principle_arn = None
         role_arn = None
         aws_region = None
+        browser = None
+        username = None
+        saved_password = None
+
+        print(self.configSAML.sections())
+
+        # check for global variables. read if any, these will be overwritten by CLI and configuration in account blocks
+        if 'global' in self.configSAML.sections():
+            log_stream.info('Read settings from global block')
+            try:
+                browser = self.configSAML.get('global', 'browser')
+            except configparser.NoOptionError:
+                pass
+            try:
+                session_duration = self.configSAML.get('global', 'sessionDuration')
+            except configparser.NoOptionError:
+                pass
+            try:
+                saved_password = self.configSAML.get('global', 'savedPassword')
+            except configparser.NoOptionError:
+                pass
+            try:
+                username = self.configSAML.get('global', 'username')
+            except configparser.NoOptionError:
+                pass
+            try:
+                aws_region = self.configSAML.get('global', 'awsRegion')
+            except configparser.NoOptionError:
+                pass
+        else:
+            log_stream.info('No gloabl settings found')
 
         if text_menu is False:
             try:
@@ -217,7 +249,7 @@ class Config:
             raise SystemExit(1)
 
         return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
-            saml_provider_name, idp_login_title, gui_name
+            saml_provider_name, idp_login_title, gui_name, browser, saved_password
 
     def revoke_creds(self, profile_name):
         self.configCredentials[profile_name] = {}
