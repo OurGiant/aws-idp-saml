@@ -6,6 +6,7 @@ import sys
 
 from pathlib import Path
 
+import Browser
 import Utilities
 
 log_stream = Utilities.Logging('config')
@@ -149,11 +150,27 @@ class Config:
                 log_stream.critical(browser)
             raise SystemExit(1)
 
+        if Path(drivers).is_dir() is False:
+            log_stream.critical('Missing drivers directory')
+            log_stream.info('Creating drivers directory')
+            try:
+                os.mkdir(drivers)
+            except OSError as e:
+                log_stream.critical('Unable to create drivers directory')
+                log_stream.critical(str(e))
+
         if Path(driver).is_file() is False:
             log_stream.critical('The driver for browser ' + user_browser + ' cannot be found at ' +
-                                str(drivers + driver_files[user_browser]) +
-                                '.Please download the appropriate drive by referencing README.md')
-            raise SystemExit(1)
+                                str(drivers + driver_files[user_browser]))
+            log_stream.info('Attempting to download the driver for '+user_browser)
+            if user_browser == 'firefox':
+                get_browser_driver = Browser.download_gecko_driver()
+            if user_browser == 'chrome':
+                get_browser_driver = Browser.download_chromedriver()
+
+            if get_browser_driver is False:
+                log_stream.critical('Please download the driver for '+user_browser+' manually using the instructions in the README')
+                raise SystemExit(1)
         return driver
 
     def return_stored_pass_config(self):
@@ -171,8 +188,6 @@ class Config:
         browser = None
         username = None
         saved_password = None
-
-        print(self.configSAML.sections())
 
         # check for global variables. read if any, these will be overwritten by CLI and configuration in account blocks
         if 'global' in self.configSAML.sections():

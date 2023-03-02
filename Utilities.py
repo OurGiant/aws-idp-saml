@@ -4,10 +4,110 @@ import logging
 import os
 import re
 import sys
+import tarfile
+import zipfile
 
 from version import __version__
 
 CONSOLE_LOG_LEVEL = logging.INFO
+
+
+class OSInfo:
+    def __init__(self):
+        os_types = [
+            {'name': 'windows', 'sysname': 'win32'},
+            {'name': 'macos', 'sysname': 'darwin'},
+            {'name': 'linux', 'sysname': 'linux'},
+        ]
+
+        for os_type in os_types:
+            if os_type['sysname'] == sys.platform:
+                self.operating_system = os_type['name']
+
+        self.environment_terminal = os.environ.get('TERM')
+
+    def display_info(self):
+        xterm_pattern = re.compile('xterm.*')
+
+        if self.operating_system == 'linux':
+            if self.environment_terminal is None:
+                is_xterm = False
+                return is_xterm
+            try:
+                is_xterm = bool(xterm_pattern.match(self.environment_terminal))
+            except ValueError:
+                is_xterm = False
+        else:
+            is_xterm = False
+        return is_xterm
+
+    def which_os(self):
+        return self.operating_system
+
+    def which_term(self):
+        return self.environment_terminal
+
+
+class ColorManage:
+    @staticmethod
+    def RGB(red=None, green=None, blue=None, bg=False):
+        if bg is False and red is not None and green is not None and blue is not None:
+            return f'\u001b[38;2;{red};{green};{blue}m'
+        elif bg is True and red is not None and green is not None and blue is not None:
+            return f'\u001b[48;2;{red};{green};{blue}m'
+        elif red is None and green is None and blue is None:
+            return '\u001b[0m'
+
+
+class CustomFormatter(logging.Formatter):
+    linux_grey = "\x1B[38;5;7"
+    linux_yellow = "\x1B[38;5;11m"
+    linux_red = "\x1B[38;5;1m"
+    linux_bold_red = "\x1B[38;5;9m"
+    linux_green = "\x1B[38;5;10m"
+    linux_cyan = "\x1B[38;5;14m"
+    linux_reset = "\x1B[0m"
+    format = '[%(asctime)s] [] [%(levelname)s] %(message)s'
+
+    windows_grey = ColorManage.RGB(226, 226, 226)
+    windows_yellow = ColorManage.RGB(255, 255, 0)
+    windows_orange = ColorManage.RGB(255, 141, 79)
+    windows_red = ColorManage.RGB(255, 0, 0)
+    windows_green = ColorManage.RGB(105, 255, 79)
+    windows_reset = ColorManage.RGB()
+
+    os_info = OSInfo()
+    is_xterm = os_info.display_info()
+
+    if is_xterm is True:
+        FORMATS = {
+            logging.DEBUG: linux_grey + format + linux_reset,
+            logging.INFO: linux_green + format + linux_reset,
+            logging.WARNING: linux_yellow + format + linux_reset,
+            logging.ERROR: linux_red + format + linux_reset,
+            logging.CRITICAL: linux_bold_red + format + linux_reset
+        }
+    elif os_info.which_os() == 'windows' and os_info.which_term() is not None:
+        FORMATS = {
+            logging.DEBUG: windows_grey + format + windows_reset,
+            logging.INFO: windows_green + format + windows_reset,
+            logging.WARNING: windows_yellow + format + windows_reset,
+            logging.ERROR: windows_orange + format + windows_reset,
+            logging.CRITICAL: windows_red + format + windows_reset
+        }
+    else:
+        FORMATS = {
+            logging.DEBUG: format,
+            logging.INFO: format,
+            logging.WARNING: format,
+            logging.ERROR: format,
+            logging.CRITICAL: format
+        }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
 
 
 class Logging:
@@ -134,99 +234,36 @@ class Arguments:
             self.store_password, self.session_duration, self.aws_region, self.text_menu, self.use_idp, self.username
 
 
-class OSInfo:
-    def __init__(self):
-        os_types = [
-            {'name': 'windows', 'sysname': 'win32'},
-            {'name': 'macos', 'sysname': 'darwin'},
-            {'name': 'linux', 'sysname': 'linux'},
-        ]
-
-        for os_type in os_types:
-            if os_type['sysname'] == sys.platform:
-                self.operating_system = os_type['name']
-
-        self.environment_terminal = os.environ.get('TERM')
-
-    def display_info(self):
-        xterm_pattern = re.compile('xterm.*')
-
-        if self.operating_system == 'linux':
-            if self.environment_terminal is None:
-                is_xterm = False
-                return is_xterm
-            try:
-                is_xterm = bool(xterm_pattern.match(self.environment_terminal))
-            except ValueError:
-                is_xterm = False
-        else:
-            is_xterm = False
-        return is_xterm
-
-    def which_os(self):
-        return self.operating_system
-
-    def which_term(self):
-        return self.environment_terminal
+log_stream = Logging('utilities')
 
 
-class ColorManage:
-    @staticmethod
-    def RGB(red=None, green=None, blue=None, bg=False):
-        if bg is False and red is not None and green is not None and blue is not None:
-            return f'\u001b[38;2;{red};{green};{blue}m'
-        elif bg is True and red is not None and green is not None and blue is not None:
-            return f'\u001b[48;2;{red};{green};{blue}m'
-        elif red is None and green is None and blue is None:
-            return '\u001b[0m'
+def extract_zip_archive(archive_file_name):
+    try:
+        log_stream.info('unzip driver archive ' + archive_file_name)
+        with zipfile.ZipFile(archive_file_name, 'r') as zip_ref:
+            zip_ref.extractall(path='drivers/')
+        zip_ref.close()
+    except zipfile.BadZipfile as e:
+        log_stream.critical(str(e))
+        return False
+    os.remove(archive_file_name)
+    return True
 
 
-class CustomFormatter(logging.Formatter):
-    linux_grey = "\x1B[38;5;7"
-    linux_yellow = "\x1B[38;5;11m"
-    linux_red = "\x1B[38;5;1m"
-    linux_bold_red = "\x1B[38;5;9m"
-    linux_green = "\x1B[38;5;10m"
-    linux_cyan = "\x1B[38;5;14m"
-    linux_reset = "\x1B[0m"
-    format = '[%(asctime)s] [%(levelname)s] %(message)s'
-
-    windows_grey = ColorManage.RGB(226, 226, 226)
-    windows_yellow = ColorManage.RGB(255, 255, 0)
-    windows_orange = ColorManage.RGB(255, 141, 79)
-    windows_red = ColorManage.RGB(255, 0, 0)
-    windows_green = ColorManage.RGB(105, 255, 79)
-    windows_reset = ColorManage.RGB()
-
-    os_info = OSInfo()
-    is_xterm = os_info.display_info()
-
-    if is_xterm is True:
-        FORMATS = {
-            logging.DEBUG: linux_grey + format + linux_reset,
-            logging.INFO: linux_green + format + linux_reset,
-            logging.WARNING: linux_yellow + format + linux_reset,
-            logging.ERROR: linux_red + format + linux_reset,
-            logging.CRITICAL: linux_bold_red + format + linux_reset
-        }
-    elif os_info.which_os() == 'windows' and os_info.which_term() is not None:
-        FORMATS = {
-            logging.DEBUG: windows_grey + format + windows_reset,
-            logging.INFO: windows_green + format + windows_reset,
-            logging.WARNING: windows_yellow + format + windows_reset,
-            logging.ERROR: windows_orange + format + windows_reset,
-            logging.CRITICAL: windows_red + format + windows_reset
-        }
-    else:
-        FORMATS = {
-            logging.DEBUG: format,
-            logging.INFO: format,
-            logging.WARNING: format,
-            logging.ERROR: format,
-            logging.CRITICAL: format
-        }
-
-    def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
-        return formatter.format(record)
+def extract_tgz_archive(archive_file_name):
+    try:
+        log_stream.info('untar driver archive ' + archive_file_name)
+        with tarfile.open(archive_file_name, 'r:gz') as tar_ref:
+            tar_ref.extractall('drivers/')
+        tar_ref.close()
+    except tarfile.ReadError as e:
+        log_stream.critical('Error reading archive:' + str(e))
+        return False
+    except tarfile.ExtractError as e:
+        log_stream.critical('Error extracting archive:' + str(e))
+        return False
+    except tarfile.TarError as e:
+        log_stream.critical('Error:' + str(e))
+        return False
+    os.remove(archive_file_name)
+    return True
