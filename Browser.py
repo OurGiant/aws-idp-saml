@@ -98,18 +98,21 @@ def missing_browser_message(browser, error):
 
 
 def download_chromedriver():
-    chrome_driver_base_url = 'https://chromedriver.storage.googleapis.com/index.html?path='
+    chrome_driver_base_url = 'https://chromedriver.storage.googleapis.com/'
     version = get_chrome_latest_version()
     chrome_driver_base_url = chrome_driver_base_url + version + '/'
     chrome_file = chrome_remote_files[operating_system]
+    # URL like
+    # https://chromedriver.storage.googleapis.com/110.0.5481.77/chromedriver_linux64.zip
     chrome_driver_download_url = chrome_driver_base_url + chrome_file
+    log_stream.info('Downloading driver from' + chrome_driver_download_url)
     get_driver = requests.get(chrome_driver_download_url)
     driver_archive = 'drivers/' + chrome_local_files[operating_system]
     if get_driver.status_code == 200:
         with open(driver_archive, 'wb') as driver_file:
             driver_file.write(get_driver.content)
         driver_file.close()
-        return Utilities.extract_zip_archive()
+        return Utilities.extract_zip_archive(driver_archive)
     else:
         log_stream.critical('Unable to download chromedriver for Chrome')
         return False
