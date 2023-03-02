@@ -33,7 +33,7 @@ These commands may need to be run from an Administrator shell, if the Set-Acl pr
 If you do not already have the ***~/.aws*** directory you can create it with ```aws configure```, Mock values can be used to create a [default] profile.
 
 ### Virtual Environment
-from the utility root:
+from the aws-idp-saml root:
 linux: 
 ```bash
 python -m venv venv
@@ -49,13 +49,18 @@ venv\Scripts\activate
 
 #### Dependancies
 
+There are two methods for installing dependencies, using pip to install the dependancies listed in requirements.txt, or using ***poetry*** to manage the python packages for the application
+
+
 ##### Using pip
+from the application root run:
 ```bash
   pip3 install -r requirements.txt
 ```
 
-##### Using Poetry [https://python-poetry.org/docs/](https://python-poetry.org/docs/)
-Start your virtual environment prior to the poetry install
+##### Using Poetry
+Install Poetry (see [Installing Poetry](#installing-poetry) )
+Start your virtual environment prior to the poetry install (see [Virtual Environment](#virtual-environment))
 
 ```bash
   poetry install
@@ -74,11 +79,15 @@ This example is for chromedriver, but will also work on geckodriver (firefox)
 
 ## Drivers
 
+The application will attempt to install the driver for which ever browser you choose, if it is not already there. If you want to install the drivers ahead of time, do so manually.
+
 If you are running this on macOS or Windows you will need to download the appropriate driver from <https://github.com/mozilla/geckodriver> or <https://chromedriver.chromium.org/downloads>.
 
 The driver needs to be placed in the ***drivers*** directory. This directory is in the root of the utility directory. MacOS and Linux drivers do not have an extension, the latest Windows drivers for each have the '.exe' extension.
 
-You must have either Chrome or Firefox installed on your system for this utility to function correctly. Chromium is not supported in the Chrome driver.  
+You must have either Chrome or Firefox installed on your system for this utility to function correctly. Chromium is not supported in the Chrome driver.
+
+The Chrome driver will attempt to update itself if the driver version is out of sync with the browser version
 
 ## Usage
 
@@ -384,13 +393,22 @@ I am unable to offer development support. If you would like to use this utility 
 you can add your provider's steps in the Providers.UseIdP() class. 
 I would ask that if possible, create a feature branch for your additions, so it can be integrated with the main branch.
 
+## Installing Poetry
+
+Documentation:  [https://python-poetry.org/docs/](https://python-poetry.org/docs/)
+Follow the installation instructions for your operating system found in the documentation
+
+Either add the poetry bin location to your path as provided in the installation output. 
+
+In Windows the executable is $Env:APPDATA\Python\Scripts\poetry.exe
+In Linux the executable is ~/.local/bin/poetry
+
 ## Troubleshooting
 
 If you have issues please create an issue on the project for review. [https://github.com/OurGiant/aws-idp-saml/issues](https://github.com/OurGiant/aws-idp-saml/issues)
 
 ## Known Issues
 - using firefox in Ubuntu when browser installed with snap package management. There are several methods to work around this, you can also install chrome and use the chrome driver.
-- Chrome browser update will cause a driver-out-of-date error to occur. The driver must be manually updated.
 
 ## To Do
 - check and pull the latest chrome driver
