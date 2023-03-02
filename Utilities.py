@@ -240,7 +240,6 @@ log_stream = Logging('utilities')
 def extract_zip_archive(archive_file_name):
     try:
         log_stream.info('unzip driver archive ' + archive_file_name)
-        raise SystemExit(1)
         with zipfile.ZipFile(archive_file_name, 'r') as zip_ref:
             zip_ref.extractall(path='drivers/')
         zip_ref.close()

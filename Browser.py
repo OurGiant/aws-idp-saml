@@ -40,6 +40,14 @@ gecko_local_files = {
 }
 
 
+def missing_browser_message(browser, error):
+    message = 'There is something wrong with the driver installed for ' + browser + '.'
+    message = message + 'Please refer to the documentation in the README on how to download and '
+    message = message + 'install the correct driver for your operating system ' + sys.platform
+    log_stream.critical(message)
+    log_stream.critical(str(error))
+
+
 def get_gecko_latest_version():
     gecko_download_url = None
     latest_version_url = 'https://api.github.com/repos/mozilla/geckodriver/releases'
@@ -89,25 +97,15 @@ def get_chrome_latest_version():
     return latest_chrome_driver_version
 
 
-def missing_browser_message(browser, error):
-    message = 'There is something wrong with the driver installed for ' + browser + '.'
-    message = message + 'Please refer to the documentation in the README on how to download and '
-    message = message + 'install the correct driver for your operating system ' + sys.platform
-    log_stream.critical(message)
-    log_stream.critical(str(error))
-
-
 def download_chromedriver():
     chrome_driver_base_url = 'https://chromedriver.storage.googleapis.com/'
     version = get_chrome_latest_version()
     chrome_driver_base_url = chrome_driver_base_url + version + '/'
     chrome_file = chrome_remote_files[operating_system]
-    # URL like
-    # https://chromedriver.storage.googleapis.com/110.0.5481.77/chromedriver_linux64.zip
     chrome_driver_download_url = chrome_driver_base_url + chrome_file
-    log_stream.info('Downloading driver from' + chrome_driver_download_url)
+    log_stream.info('Downloading driver from ' + chrome_driver_download_url)
     get_driver = requests.get(chrome_driver_download_url)
-    driver_archive = 'drivers/' + chrome_local_files[operating_system]
+    driver_archive = 'drivers/' + chrome_remote_files[operating_system]
     if get_driver.status_code == 200:
         with open(driver_archive, 'wb') as driver_file:
             driver_file.write(get_driver.content)
