@@ -22,7 +22,7 @@ def main():
         arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
-        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password \
+        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, username \
         = config.read_config(aws_profile_name, text_menu, use_idp, arg_username)
 
     aws_region, aws_session_duration = Config.get_aws_variables(config_aws_region, config_session_duration,

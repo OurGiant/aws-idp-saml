@@ -185,7 +185,7 @@ class Config:
             try:
                 session_duration = self.configSAML[aws_profile_name]['sessionDuration']
             except KeyError:
-                session_duration = None
+                pass
             try:
                 account_number = self.configSAML[aws_profile_name]['accountNumber']
                 iam_role = self.configSAML[aws_profile_name]['IAMRole']
@@ -219,7 +219,7 @@ class Config:
             raise SystemExit(1)
 
         return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
-            saml_provider_name, idp_login_title, gui_name, browser, saved_password
+            saml_provider_name, idp_login_title, gui_name, browser, saved_password, username
 
     def revoke_creds(self, profile_name):
         self.configCredentials[profile_name] = {}
