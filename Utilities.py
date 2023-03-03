@@ -6,8 +6,9 @@ import re
 import sys
 import tarfile
 import zipfile
+from pathlib import Path
 
-from version import __version__
+import constants
 
 CONSOLE_LOG_LEVEL = logging.INFO
 
@@ -267,3 +268,7 @@ def extract_tgz_archive(archive_file_name):
         return False
     os.remove(archive_file_name)
     return True
+
+
+def get_script_exec_path():
+    return str(Path(__file__).resolve().parents[0])

@@ -8,7 +8,7 @@ import getpass
 # third-party imports
 from cryptography.fernet import Fernet, InvalidToken
 
-from version import __version__
+import constants
 import Utilities
 
 log_stream = Utilities.Logging('password')

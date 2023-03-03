@@ -1,20 +1,20 @@
 # coding=utf-8
 import json
 
+import Browser
 import Utilities
 import Password
 import SAMLSelector
-from Login import IdPLogin
+import Login
 import Config
 from AWS import STS
 
-from version import __version__
+import constants
 
 log_stream = Utilities.Logging('get_credentials')
 
 args = Utilities.Arguments()
 config = Config.Config()
-login = IdPLogin()
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
         arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
-        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password \
+        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, username \
         = config.read_config(aws_profile_name, text_menu, use_idp, arg_username)
 
     aws_region, aws_session_duration = Config.get_aws_variables(config_aws_region, config_session_duration,
@@ -33,8 +33,8 @@ def main():
         log_stream.critical('A browser type must be specified either on the command line'
                             ' or in the global section in the config file')
         raise SystemExit(1)
-    else:
-        driver_executable = config.verify_drivers(browser_type)
+    # else:
+    #     driver_executable = Browser.verify_drivers(browser_type)
 
     pass_key, pass_file = config.return_stored_pass_config()
 
@@ -51,13 +51,12 @@ def main():
     else:
         password: str = Password.retrieve_password(pass_key, pass_file)
 
-    saml_response = login.browser_login(username,
+    saml_response = Login.browser_login(username,
                                         password,
                                         first_page,
                                         use_debug,
                                         use_gui,
                                         browser_type,
-                                        driver_executable,
                                         saml_provider_name,
                                         idp_login_title,
                                         role_arn, gui_name)
