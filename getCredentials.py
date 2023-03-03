@@ -1,20 +1,20 @@
 # coding=utf-8
 import json
 
+import Browser
 import Utilities
 import Password
 import SAMLSelector
-from Login import IdPLogin
+import Login
 import Config
 from AWS import STS
 
-from version import __version__
+import constants
 
 log_stream = Utilities.Logging('get_credentials')
 
 args = Utilities.Arguments()
 config = Config.Config()
-login = IdPLogin()
 
 
 def main():
@@ -33,8 +33,8 @@ def main():
         log_stream.critical('A browser type must be specified either on the command line'
                             ' or in the global section in the config file')
         raise SystemExit(1)
-    else:
-        driver_executable = config.verify_drivers(browser_type)
+    # else:
+    #     driver_executable = Browser.verify_drivers(browser_type)
 
     pass_key, pass_file = config.return_stored_pass_config()
 
@@ -51,13 +51,12 @@ def main():
     else:
         password: str = Password.retrieve_password(pass_key, pass_file)
 
-    saml_response = login.browser_login(username,
+    saml_response = Login.browser_login(username,
                                         password,
                                         first_page,
                                         use_debug,
                                         use_gui,
                                         browser_type,
-                                        driver_executable,
                                         saml_provider_name,
                                         idp_login_title,
                                         role_arn, gui_name)

@@ -10,7 +10,7 @@ import Browser
 import Utilities
 
 log_stream = Utilities.Logging('config')
-from version import __version__
+import constants
 
 
 def missing_config_file_message():
@@ -127,51 +127,6 @@ class Config:
                     config.write(
                         "[" + section + "]\nregion=" + self.configSAML._sections[section]['awsregion'] + "\n\n")
         config.close()
-
-    def verify_drivers(self, user_browser, drivers=None, driver=None):
-        driver_files = None
-        if sys.platform == 'linux' or sys.platform == 'darwin':
-            os.environ['PATH'] += ":" + str(Path.cwd()) + '/drivers'
-            drivers = self.executePath + '/drivers/'
-            driver_files = {'chrome': 'chromedriver', 'firefox': 'geckodriver'}
-        elif sys.platform == 'win32':
-            os.environ['PATH'] += ";" + str(Path.cwd()) + '\\drivers\\'
-            drivers = self.executePath + '\\drivers\\'
-            driver_files = {'chrome': 'chromedriver.exe', 'firefox': 'geckodriver.exe'}
-        else:
-            log_stream.critical('Unknown OS type ' + sys.platform)
-            raise SystemExit(1)
-
-        try:
-            driver = str(drivers + driver_files[user_browser])
-        except KeyError:
-            log_stream.critical('unknown browser specified.browsers currently supported:')
-            for browser, driver in driver_files.items():
-                log_stream.critical(browser)
-            raise SystemExit(1)
-
-        if Path(drivers).is_dir() is False:
-            log_stream.critical('Missing drivers directory')
-            log_stream.info('Creating drivers directory')
-            try:
-                os.mkdir(drivers)
-            except OSError as e:
-                log_stream.critical('Unable to create drivers directory')
-                log_stream.critical(str(e))
-
-        if Path(driver).is_file() is False:
-            log_stream.critical('The driver for browser ' + user_browser + ' cannot be found at ' +
-                                str(drivers + driver_files[user_browser]))
-            log_stream.info('Attempting to download the driver for '+user_browser)
-            if user_browser == 'firefox':
-                get_browser_driver = Browser.download_gecko_driver()
-            if user_browser == 'chrome':
-                get_browser_driver = Browser.download_chromedriver()
-
-            if get_browser_driver is False:
-                log_stream.critical('Please download the driver for '+user_browser+' manually using the instructions in the README')
-                raise SystemExit(1)
-        return driver
 
     def return_stored_pass_config(self):
         return self.PassKey, self.PassFile

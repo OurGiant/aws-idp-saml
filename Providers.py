@@ -7,7 +7,7 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common import exceptions as se
 
-from version import __version__
+import constants
 import Utilities
 
 log_stream = Utilities.Logging('providers')

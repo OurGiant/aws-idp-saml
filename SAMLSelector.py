@@ -6,7 +6,7 @@ from tabulate import tabulate
 from selenium.webdriver.common.by import By
 import xml.etree.ElementTree as ET
 
-from version import __version__
+import constants
 
 import Utilities
 

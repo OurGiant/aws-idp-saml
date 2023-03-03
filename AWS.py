@@ -4,7 +4,7 @@ import datetime
 from boto3 import Session as BotoSession
 from botocore import errorfactory as err
 
-from version import __version__
+import constants
 import Utilities
 log_stream = Utilities.Logging('aws')
 
