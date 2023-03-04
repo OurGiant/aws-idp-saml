@@ -1,0 +1,24 @@
+FROM python:3.10-slim
+
+RUN apt update && apt -y install curl \
+    && groupadd -g 1001 bsampson \
+    && useradd -rm -d /home/bsampson -s /bin/bash -g bsampson -G sudo -u 1001 bsampson \
+    && mkdir /home/bsampson/application /home/bsampson/.aws && chown -Rv 1001:1001 /home/bsampson/
+USER bsampson
+RUN curl -sSL https://install.python-poetry.org | python3 -
+COPY --chown=1001:1001 *.py *.toml /home/bsampson/application/
+RUN cd /home/bsampson/application/ \
+    && python -m venv venv \
+    &&  . venv/bin/activate \
+    && $HOME/.local/bin/poetry install \
+    && deactivate
+
+
+USER root
+RUN apt -y remove curl && apt -y autoremove
+USER bsampson
+WORKDIR /home/bsampson/application
+CMD . venv/bin/activate && python3 ./getCredentials.py
+
+
+
