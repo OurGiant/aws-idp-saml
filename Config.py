@@ -1,16 +1,12 @@
 # coding=utf-8
 import configparser
-import os
 import re
-import sys
-
 from pathlib import Path
 
-import Browser
 import Utilities
+import constants
 
 log_stream = Utilities.Logging('config')
-import constants
 
 
 def missing_config_file_message():
@@ -82,10 +78,13 @@ class Config:
         self.AWSRoot = home + "/.aws/"
         self.awsSAMLFile = self.AWSRoot + "samlsts"
 
-        # READ IN SAML CONFIG IF EXISTS, EXIT IF NOT
-        if Path(self.awsSAMLFile).is_file() is False:
+        if not Path(self.awsSAMLFile).is_file():
+            log_stream.warning('No SAML-STS file, one will be built for you using a series of questions')
+            self.get_saml_info()
+            self.configSAML = configparser.ConfigParser()
+            self.configSAML.read(self.awsSAMLFile)
+        elif not Path(self.awsSAMLFile).is_file() and not Path('/.dockerenv').is_file():
             missing_config_file_message()
-
         else:
             self.configSAML = configparser.ConfigParser()
             self.configSAML.read(self.awsSAMLFile)
@@ -119,6 +118,19 @@ class Config:
         self.PassFile = self.AWSRoot + "saml.pass"
         self.PassKey = self.AWSRoot + "saml.key"
         self.AccountMap = self.AWSRoot + "account-map.json"
+
+    def get_saml_info(self):
+        idp_name = None
+        while idp_name not in constants.valid_idp:
+            idp_name: str = input('What is the name of your provider? [PING,OKTA] ').lower()
+        log_stream.info('Information may be obtained from your IdP admin')
+        login_page: str = input('What is the application login URL for your IdP? ')
+        login_title: str = input('What is the HTML title on the login page? ')
+        with open(self.awsSAMLFile, 'w+') as saml_config_file:
+            saml_config_file.write(
+                "[Fed-" + idp_name.upper() + "]\nloginpage=" + login_page + "\nloginTitle=" + login_title + "\n\n"
+            )
+        return
 
     def write_aws_config(self):
         with open(self.awsConfigFile, 'w') as config:

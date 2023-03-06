@@ -2,6 +2,37 @@
 
 Log into your IdP and retrieve a SAML assertion for AWS. Use SAML assertion to assume an AWS role for use with SDK and CLI.
 
+## Table of Contents
+- [Getting Started](#getting-started)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Installing](#installing)
+- - [Configuration](#configuration)
+- - [Virtual Environment](#virtual-environment)
+- - [Dependancies](#dependancies)
+- - - [Using Poetry](#using-poetry--preferred-)
+- - - [Using pip](#using-pip)
+- - [MacOS Users Special Instructions](#macos-users-special-instructions)
+- [Drivers](#drivers)
+- [Usage](#usage)
+- - [Configuration file](#configuration-file)
+- - - [Providers Section](#providers-section)
+- - - [Global Section](#global-section)
+- - [Full Configuration mode](#full-configuration-mode)
+- - [Text Menu mode](#text-menu-mode)
+- - [Docker](#docker)
+- - [Additional Indentity Providers](#additional-indentity-providers)
+- [Installing Poetry](#installing-poetry)
+- [Troubleshooting](#troubleshooting)
+- [Known Issues](#known-issues)
+- [To Do](#to-do)
+- [System Information](#system-information)
+- [Contributing](#contributing)
+- [Versioning](#versioning)
+- [Authors](#authors)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
+
 ## Getting Started
 
 Clone this repository to your local system. The latest verstion will be tagged ***LATEST*** in GitHub.
@@ -12,6 +43,11 @@ Clone this repository to your local system. The latest verstion will be tagged *
 - Chrome or Filefox drivers specific to your operating system (see [Drivers](#drivers) section) (see [Known Issue](#known-issues) session)
 - Python libraries from requirements.txt (see [Installing](#installing) section)
 
+## Quick Start
+
+```bash
+python3 getCredentials.py --textmenu
+```
 
 ## Installing
 
@@ -52,13 +88,7 @@ venv\Scripts\activate
 There are two methods for installing dependencies, using pip to install the dependancies listed in requirements.txt, or using ***poetry*** to manage the python packages for the application
 
 
-##### Using pip
-from the application root run:
-```bash
-  pip3 install -r requirements.txt
-```
-
-##### Using Poetry
+##### Using Poetry (preferred)
 Install Poetry (see [Installing Poetry](#installing-poetry) )
 Start your virtual environment prior to the poetry install (see [Virtual Environment](#virtual-environment))
 
@@ -66,6 +96,13 @@ Start your virtual environment prior to the poetry install (see [Virtual Environ
   poetry install
   poetry update
 ```
+
+##### Using pip
+from the application root run:
+```bash
+  pip3 install -r requirements.txt
+```
+
 
 ### MacOS Users Special Instructions
 
@@ -85,7 +122,7 @@ If you are running this on macOS or Windows you will need to download the approp
 
 The driver needs to be placed in the ***drivers*** directory. This directory is in the root of the utility directory. MacOS and Linux drivers do not have an extension, the latest Windows drivers for each have the '.exe' extension.
 
-You must have either Chrome or Firefox installed on your system for this utility to function correctly. Chromium is not supported in the Chrome driver.
+You must have either Chrome or Firefox installed on your system for this utility to function correctly. Chromium may not be supported in the Chrome driver. If you have only Chromium installed, reference the browser as "chrome"
 
 The Chrome driver will attempt to update itself if the driver version is out of sync with the browser version
 
@@ -93,8 +130,19 @@ The Chrome driver will attempt to update itself if the driver version is out of 
 
 ### Configuration file
 
-The config file found in the project root named **samlsts.demo** will need to be moved to your ***~/.aws*** directory and renamed **samlsts**. 
+You may run the utility without first having an ***~/.aws/samlsts*** configuration file. The utility will attempt to create one for you by asking the following questions:
+
+- What is the name of your provider? [PING,OKTA]
+- What is the application login URL for your IdP? 
+- What is the HTML title on the login page? 
+
+With these answers it will create the file and add this provider section. 
+
+You may also copy the ***samlsts.demo*** file from this repository into your ***~/.aws*** directory and rename it **samlsts**.
+
 If you do not already have the ***~/.aws*** directory you can create it with ```aws configure```, Mock values can be used to create a [default] profile.
+
+You do not need to define a [global](#global-section) section or [profile](#full-configuration-mode) sections. You may use the utility with --textmenu, --username, --idp, and --browser
 
 
 #### Providers Section
@@ -371,6 +419,15 @@ Enter the Id of the role to assume:
 
 ```
 
+### Docker
+
+This utility should be considered "container friendly". There are example docker files in the ***docker** directory which demonstrate how a user could set up their container to run the utility along side whatever other application they are going to deploy in the container. These docker files were tested and are known to be working.
+
+- ubuntu container must use firefox, installed as a debian package
+- most other distributions will install Chromium and reference the browser as Chrome
+- running the utility AS a docker container with docker run is possible, allthough in order to do so you would need to mount your ~/.aws directory at runtime and this could cause UID/permissions issues. This was tested and determined not to be a high priority use case.   
+
+
 ## Additional Indentity Providers
 
 The [original version](https://github.com/OurGiant/aws-ping-saml) of this utility was written to allow users to obtain STS credentials where there was a fixed IdP, PING. A need to accomodate an additional IdP was found and that lead to the development changes which resulted in this iteration of the utilitiy.
@@ -408,7 +465,6 @@ In Linux the executable is ~/.local/bin/poetry
 If you have issues please create an issue on the project for review. [https://github.com/OurGiant/aws-idp-saml/issues](https://github.com/OurGiant/aws-idp-saml/issues)
 
 ## Known Issues
-- using firefox in Ubuntu when browser installed with snap package management. There are several methods to work around this, you can also install chrome and use the chrome driver.
 
 ## To Do
 - check and pull the latest chrome driver
