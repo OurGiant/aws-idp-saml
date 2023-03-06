@@ -1,0 +1,24 @@
+FROM --platform=linux/amd64 mcr.microsoft.com/vscode/devcontainers/javascript-node:14-bullseye
+
+RUN apt update && apt -y install curl python3 python3-venv chromium\
+    && groupadd -g 1001 hventure \
+    && useradd -rm -d /home/hventure -s /bin/bash -g hventure -G sudo -u 1001 hventure \
+    && mkdir /home/hventure/application /home/hventure/.aws && chown -Rv 1001:1001 /home/hventure/ && chmod 700 /home/hventure/.aws && ln -s /usr/bin/python3 /usr/bin/python
+
+
+USER hventure
+RUN curl -sSL https://install.python-poetry.org | python3 -
+COPY --chown=1001:1001 *.py *.toml /home/hventure/application/
+RUN cd /home/hventure/application/ \
+    && python -m venv venv \
+    &&  . venv/bin/activate \
+    && $HOME/.local/bin/poetry install \
+    && deactivate
+USER root
+RUN apt -y remove curl && apt -y autoremove
+USER hventure
+WORKDIR /home/hventure/application
+ENTRYPOINT ["/bin/bash"]
+
+
+

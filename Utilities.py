@@ -159,15 +159,13 @@ class Arguments:
 
         self.valid_regions = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2']
 
-        self.valid_idp = ['okta', 'ping']
-
         self.parser = argparse.ArgumentParser()
         self.parser.add_argument("--username", type=str,
                                  help="username for logging into SAML provider, required for text menu")
         self.parser.add_argument("--profilename", type=str, help="the AWS profile name for this session")
         self.parser.add_argument("--region", type=str, help="the AWS profile name for this session",
                                  choices=self.valid_regions)
-        self.parser.add_argument("--idp", type=str, help="Id Provider", choices=self.valid_idp)
+        self.parser.add_argument("--idp", type=str, help="Id Provider", choices=constants.valid_idp)
         self.parser.add_argument("--duration", type=str,
                                  help="desire token length, not to be greater than max length set by AWS "
                                       "administrator")
@@ -207,8 +205,9 @@ class Arguments:
             self.username = self.args.username
 
         if self.args.textmenu is True and self.args.idp is None:
-            self.log_stream.critical('IdP must be provided to use Text Menu')
-            raise SystemExit(1)
+            self.log_stream.info('IdP must be provided to use Text Menu')
+            get_idp = input('Please specify a browser to use [' + ','.join(constants.valid_idp) + '] ')
+            self.use_idp = "Fed-" + str(get_idp).upper()
         else:
             self.use_idp = "Fed-" + str(self.args.idp).upper()
 
@@ -224,9 +223,13 @@ class Arguments:
         else:
             self.session_duration = self.args.duration
 
+        if self.args.browser is None:
+            self.browser_type = input('Please specify a browser to use ['+','.join(constants.valid_browsers)+'] ')
+        else:
+            self.browser_type = self.args.browser
+
         self.use_debug = self.args.debug
         self.use_gui = self.args.gui
-        self.browser_type = self.args.browser
         self.store_password = self.args.storedpw
         self.aws_region = self.args.region
         self.text_menu = self.args.textmenu
@@ -272,3 +275,17 @@ def extract_tgz_archive(archive_file_name):
 
 def get_script_exec_path():
     return str(Path(__file__).resolve().parents[0])
+
+
+def check_if_container():
+    log_stream.info('run environment is a container')
+    container_file = Path('/.dockerenv')
+    if container_file.is_file():
+        log_stream.info('Run as container')
+        try:
+            with open('.is_container', 'w') as fh:
+                fh.write(open('/var/run/systemd/container').read())
+            fh.close()
+        except OSError:
+            log_stream.critical('Unable to write container flag file')
+            raise SystemExit(1)

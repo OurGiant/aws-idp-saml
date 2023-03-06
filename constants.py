@@ -4,6 +4,7 @@ __snap_install_dir__ = '/snap/firefox/current/usr/lib/firefox'
 __mozilla_driver_url__ = 'https://api.github.com/repos/mozilla/geckodriver/releases'
 
 valid_browsers = ['chrome', 'firefox']
+valid_idp = ['okta', 'ping']
 
 chrome_remote_files = {
     "windows": "chromedriver_win32.zip",
