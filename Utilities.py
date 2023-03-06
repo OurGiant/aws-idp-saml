@@ -205,8 +205,9 @@ class Arguments:
             self.username = self.args.username
 
         if self.args.textmenu is True and self.args.idp is None:
-            self.log_stream.critical('IdP must be provided to use Text Menu')
-            raise SystemExit(1)
+            self.log_stream.info('IdP must be provided to use Text Menu')
+            get_idp = input('Please specify a browser to use [' + ','.join(constants.valid_idp) + '] ')
+            self.use_idp = "Fed-" + str(get_idp).upper()
         else:
             self.use_idp = "Fed-" + str(self.args.idp).upper()
 
@@ -222,13 +223,13 @@ class Arguments:
         else:
             self.session_duration = self.args.duration
 
-        self.use_debug = self.args.debug
-        self.use_gui = self.args.gui
-        if Path('.is_container').is_file():
-            log_stream.info('Running in container default browser to firefox')
-            self.browser_type = 'firefox'
+        if self.args.browser is None:
+            self.browser_type = input('Please specify a browser to use ['+','.join(constants.valid_browsers)+'] ')
         else:
             self.browser_type = self.args.browser
+
+        self.use_debug = self.args.debug
+        self.use_gui = self.args.gui
         self.store_password = self.args.storedpw
         self.aws_region = self.args.region
         self.text_menu = self.args.textmenu
@@ -278,7 +279,7 @@ def get_script_exec_path():
 
 def check_if_container():
     log_stream.info('run environment is a container')
-    container_file = Path('/var/run/systemd/container')
+    container_file = Path('/.dockerenv')
     if container_file.is_file():
         log_stream.info('Run as container')
         try:

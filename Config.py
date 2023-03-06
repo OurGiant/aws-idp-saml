@@ -78,22 +78,16 @@ class Config:
         self.AWSRoot = home + "/.aws/"
         self.awsSAMLFile = self.AWSRoot + "samlsts"
 
-        if Path('.is_container').is_file() and not Path(self.awsSAMLFile).is_file():
+        if not Path(self.awsSAMLFile).is_file():
             log_stream.warning('No SAML-STS file, one will be built for you using a series of questions')
             self.get_saml_info()
             self.configSAML = configparser.ConfigParser()
             self.configSAML.read(self.awsSAMLFile)
-        elif not Path(self.awsSAMLFile).is_file() and not Path('is_container').is_file():
+        elif not Path(self.awsSAMLFile).is_file() and not Path('/.dockerenv').is_file():
             missing_config_file_message()
         else:
             self.configSAML = configparser.ConfigParser()
             self.configSAML.read(self.awsSAMLFile)
-
-        if Path('.is_container').is_file():
-            log_stream.info('Running in container default browser to firefox')
-            self.user_browser = 'firefox'
-        else:
-            self.user_browser = None
 
         # READ IN AWS CREDENTIALS
         self.awsCredentialsFile = self.AWSRoot + "credentials"
@@ -158,7 +152,7 @@ class Config:
         principle_arn = None
         role_arn = None
         aws_region = None
-        browser = self.user_browser
+        browser = None
         username = None
         saved_password = None
 
