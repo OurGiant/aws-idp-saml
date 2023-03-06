@@ -14,6 +14,7 @@ import constants
 log_stream = Utilities.Logging('get_credentials')
 
 args = Utilities.Arguments()
+Utilities.check_if_container()
 config = Config.Config()
 
 

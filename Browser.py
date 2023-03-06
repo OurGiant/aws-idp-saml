@@ -169,6 +169,7 @@ def verify_drivers(user_browser):
     #         raise SystemExit(1)
     return driver_executable
 
+
 def browser_debugging_options(options):
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
@@ -193,28 +194,28 @@ def setup_browser(user_browser, use_debug):
     is_driver_loaded: bool = False
     browser_options = None
 
-# if user_browser == 'firefox':
-# from selenium.webdriver.firefox.options import Options as Firefox
-# browser_options = Firefox()
-# if os_info.which_os() == 'linux':
-#     driver_executable, binary_location = gecko_from_snap()
-#     if binary_location is not None:
-#         browser_options.binary_location = binary_location
-#     else:
-#         driver_executable = verify_drivers('firefox')
-# elif user_browser == 'chrome':
-#     from selenium.webdriver.chrome.options import Options as Chrome
-#     browser_options = Chrome()
-#     browser_options.add_argument("--disable-dev-shm-usage")
-#     driver_executable = verify_drivers('chrome')
-#
-# if operating_system == 'windows' and user_browser == 'chrome':
-#     try:
-#         browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-#     except se.NoSuchAttributeException:
-#         log_stream.info('Unable to add Experimental Options')
-#     # Chrome on Win32 requires basic authentication on PING page, prior to form authentication
-#     first_page = first_page[0:8] + username + ':' + password + '@' + first_page[8:]
+    # if user_browser == 'firefox':
+    # from selenium.webdriver.firefox.options import Options as Firefox
+    # browser_options = Firefox()
+    # if os_info.which_os() == 'linux':
+    #     driver_executable, binary_location = gecko_from_snap()
+    #     if binary_location is not None:
+    #         browser_options.binary_location = binary_location
+    #     else:
+    #         driver_executable = verify_drivers('firefox')
+    # elif user_browser == 'chrome':
+    #     from selenium.webdriver.chrome.options import Options as Chrome
+    #     browser_options = Chrome()
+    #     browser_options.add_argument("--disable-dev-shm-usage")
+    #     driver_executable = verify_drivers('chrome')
+    #
+    # if operating_system == 'windows' and user_browser == 'chrome':
+    #     try:
+    #         browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    #     except se.NoSuchAttributeException:
+    #         log_stream.info('Unable to add Experimental Options')
+    #     # Chrome on Win32 requires basic authentication on PING page, prior to form authentication
+    #     first_page = first_page[0:8] + username + ':' + password + '@' + first_page[8:]
 
     if user_browser == 'firefox':
         from selenium.webdriver.firefox.options import Options as Firefox
@@ -240,7 +241,6 @@ def setup_browser(user_browser, use_debug):
                 is_driver_loaded = True
             except se.WebDriverException as missing_browser_driver_error:
                 missing_browser_message(user_browser, missing_browser_driver_error)
-
     elif user_browser == 'chrome':
         from selenium.webdriver.chrome.options import Options as Chrome
         browser_options = Chrome()
