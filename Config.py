@@ -180,7 +180,7 @@ class Config:
             except configparser.NoOptionError:
                 pass
         else:
-            log_stream.info('No gloabl settings found')
+            log_stream.info('No global settings found')
 
         if text_menu is False:
             try:
