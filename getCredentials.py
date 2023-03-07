@@ -7,7 +7,7 @@ import Password
 import SAMLSelector
 import Login
 import Config
-from AWS import STS
+import AWS
 
 import constants
 
@@ -22,7 +22,7 @@ def main():
         arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
-        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, username \
+        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, account_number \
         = config.read_config(aws_profile_name, text_menu, use_idp, arg_username)
 
     aws_region, aws_session_duration = Config.get_aws_variables(config_aws_region, config_session_duration,
@@ -67,15 +67,8 @@ def main():
         raise SystemExit(1)
 
     if text_menu is True:
-        account_map_file = config.return_account_map_file()
-        try:
-            with open(account_map_file, 'r') as mapfile:
-                account_map = json.loads(mapfile.read())
-            mapfile.close()
-        except FileNotFoundError:
-            log_stream.warning('No map file found, using account numbers in display')
-            log_stream.warning('The accounts map configuration can be provided to you by your AWS team')
-            account_map = None
+
+        account_map = config.read_map_file()
 
         all_roles, table_object = SAMLSelector.get_roles_from_saml_response(saml_response, account_map)
         selected_role = SAMLSelector.select_role_from_text_menu(all_roles, table_object)
@@ -86,15 +79,16 @@ def main():
             account_name = selected_role['account_name']
         except KeyError:
             account_name = selected_role['account_number']
+        account_number = selected_role['account_number']
     else:
         profile_name = aws_profile_name
         account_name = gui_name
 
-    get_sts = STS.aws_assume_role(aws_region, role_arn, principle_arn, saml_response, aws_session_duration)
+    get_sts = AWS.STS.aws_assume_role(aws_region, role_arn, principle_arn, saml_response, aws_session_duration)
 
     if len(get_sts) > 0:
         aws_access_id, aws_secret_key, aws_session_token, sts_expiration, \
-            profile_block = STS.get_sts_details(get_sts, aws_region, profile_name)
+            profile_block = AWS.STS.get_sts_details(get_sts, aws_region, profile_name)
 
         if Config.validate_aws_cred_format(aws_access_id, aws_secret_key, aws_session_token):
             config.write_config(aws_access_id, aws_secret_key, aws_session_token, profile_name, aws_region)
@@ -102,7 +96,13 @@ def main():
             log_stream.critical('There seems to be an issue with one of the credentials generated, please try again')
             raise SystemExit(1)
 
-        aws_user_id = STS.get_aws_caller_id(profile_name)
+        account_name = AWS.get_account_alias(profile_name,account_number)
+        if account_name is not None:
+            config.write_account_to_map_file(account_name,account_number)
+        else:
+            account_name = account_number
+
+        aws_user_id = AWS.STS.get_aws_caller_id(profile_name)
 
         sts_expires_local_time: str = sts_expiration.strftime("%c")
         log_stream.info('Token issued for ' + aws_user_id + ' in account ' + account_name)

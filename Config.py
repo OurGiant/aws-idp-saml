@@ -1,5 +1,6 @@
 # coding=utf-8
 import configparser
+import json
 import re
 from pathlib import Path
 
@@ -146,7 +147,40 @@ class Config:
     def return_account_map_file(self):
         return self.AccountMap
 
+    def create_new_map_file(self):
+        with open(self.AccountMap, 'w') as mapfh:
+            mapfh.write('[]')
+        mapfh.close()
+
+    def write_account_to_map_file(self,account_name,account_number):
+        with open(self.AccountMap, 'r') as mapfile:
+            account_map: list = json.loads(mapfile.read())
+        mapfile.close()
+
+        account_map_entry = {"name":account_name, "number":account_number}
+        account_map.append(account_map_entry)
+
+        with open(self.AccountMap, 'w') as mapfile:
+            mapfile.write(json.dumps(account_map))
+        mapfile.close()
+
+    def read_map_file(self):
+        account_map_file = self.return_account_map_file()
+        try:
+            with open(account_map_file, 'r') as mapfile:
+                account_map: list = json.loads(mapfile.read())
+            mapfile.close()
+        except FileNotFoundError:
+            log_stream.warning('No map file found, using account numbers in display')
+            log_stream.info('Starting a new accounts map file')
+            log_stream.info('The accounts map configuration can be provided to you by your AWS team')
+            self.create_new_map_file()
+            account_map = self.read_map_file()
+
+        return account_map
+
     def read_config(self, aws_profile_name, text_menu, use_idp, arg_username):
+        account_number = None
         gui_name = None
         session_duration = None
         principle_arn = None
@@ -231,7 +265,7 @@ class Config:
             raise SystemExit(1)
 
         return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
-            saml_provider_name, idp_login_title, gui_name, browser, saved_password, username
+            saml_provider_name, idp_login_title, gui_name, browser, saved_password, account_number
 
     def revoke_creds(self, profile_name):
         self.configCredentials[profile_name] = {}
