@@ -10,8 +10,6 @@ from pathlib import Path
 
 import constants
 
-CONSOLE_LOG_LEVEL = logging.INFO
-
 
 class OSInfo:
     def __init__(self):
@@ -113,11 +111,11 @@ class CustomFormatter(logging.Formatter):
 
 class Logging:
 
-    def __init__(self, name, level=CONSOLE_LOG_LEVEL):
+    def __init__(self, name, level=constants.__console_log_level__):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(CONSOLE_LOG_LEVEL)
+        console_handler.setLevel(constants.__console_log_level__)
         console_handler.setFormatter(CustomFormatter())
         self.logger.addHandler(console_handler)
         self.logger.propagate = False
@@ -205,8 +203,10 @@ class Arguments:
             self.username = self.args.username
 
         if self.args.textmenu is True and self.args.idp is None:
+            get_idp = None
             self.log_stream.info('IdP must be provided to use Text Menu')
-            get_idp = input('Please specify a browser to use [' + ','.join(constants.valid_idp) + '] ')
+            while get_idp not in constants.valid_idp:
+                get_idp = input('Please specify a browser to use [' + ','.join(constants.valid_idp) + '] ')
             self.use_idp = "Fed-" + str(get_idp).upper()
         else:
             self.use_idp = "Fed-" + str(self.args.idp).upper()
@@ -223,8 +223,11 @@ class Arguments:
         else:
             self.session_duration = self.args.duration
 
+        # TODO handle global browser better, this shouldn't be requested if in global section
         if self.args.browser is None:
-            self.browser_type = input('Please specify a browser to use ['+','.join(constants.valid_browsers)+'] ')
+            while self.browser_type not in constants.valid_browsers:
+                self.browser_type = input(
+                    'Please specify a browser to use [' + ','.join(constants.valid_browsers) + '] ')
         else:
             self.browser_type = self.args.browser
 

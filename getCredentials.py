@@ -87,28 +87,36 @@ def main():
     get_sts = AWS.STS.aws_assume_role(aws_region, role_arn, principle_arn, saml_response, aws_session_duration)
 
     if len(get_sts) > 0:
-        aws_access_id, aws_secret_key, aws_session_token, sts_expiration, \
-            profile_block = AWS.STS.get_sts_details(get_sts, aws_region, profile_name)
+        aws_access_id, aws_secret_key, aws_session_token, sts_expiration\
+            = AWS.STS.get_sts_details(get_sts)
 
         if Config.validate_aws_cred_format(aws_access_id, aws_secret_key, aws_session_token):
-            config.write_config(aws_access_id, aws_secret_key, aws_session_token, profile_name, aws_region)
+            profile_block, clean_profile_name = config.write_aws_config(aws_access_id, aws_secret_key, aws_session_token, profile_name, aws_region)
         else:
             log_stream.critical('There seems to be an issue with one of the credentials generated, please try again')
             raise SystemExit(1)
 
-        account_name = AWS.get_account_alias(profile_name,account_number)
-        if account_name is not None:
-            config.write_account_to_map_file(account_name,account_number)
-        else:
-            account_name = account_number
-
-        aws_user_id = AWS.STS.get_aws_caller_id(profile_name)
+        aws_user_id = AWS.STS.get_aws_caller_id(clean_profile_name)
 
         sts_expires_local_time: str = sts_expiration.strftime("%c")
         log_stream.info('Token issued for ' + aws_user_id + ' in account ' + account_name)
         log_stream.info('Token will expire at ' + sts_expires_local_time)
 
+        if config.check_global_in_saml_config():
+            configure_globals: str = input('Save the settings from this section for all sessions? [Y/N]')
+            configure_globals = configure_globals.upper()
+            if configure_globals.startswith('Y'):
+                config.write_global_to_saml_config(browser_type, username, aws_region, aws_session_duration)
+            else:
+                pass
+        else:
+            pass
+
         print(f'\n{profile_block}\n')
+        if config.write_profile_to_saml_config(clean_profile_name, aws_region, account_number, role_arn,
+                                               saml_provider_name, username):
+            log_stream.info('Saving this profile as ' + clean_profile_name)
+            log_stream.info('You can reference this profile like --profilename ' + clean_profile_name)
 
     else:
         log_stream.critical("Corrupt or Unavailable STS Response")
