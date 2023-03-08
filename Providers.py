@@ -9,8 +9,9 @@ from selenium.common import exceptions as se
 
 import constants
 import Utilities
+from Logging import Logging
 
-log_stream = Utilities.Logging('providers')
+log_stream = Logging('providers')
 
 saml_page_title = "Amazon Web Services Sign-In"
 xpath_locator = By.XPATH

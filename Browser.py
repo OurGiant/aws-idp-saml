@@ -10,8 +10,9 @@ from selenium.common import exceptions as se
 
 import constants
 import Utilities
+from Logging import Logging
 
-log_stream = Utilities.Logging('browser')
+log_stream = Logging('browser')
 
 os_info = Utilities.OSInfo()
 operating_system = os_info.which_os()

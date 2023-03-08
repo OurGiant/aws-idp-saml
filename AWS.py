@@ -7,8 +7,9 @@ from botocore import errorfactory as err
 
 import constants
 import Utilities
+from Logging import Logging
 
-log_stream = Utilities.Logging('aws')
+log_stream = Logging('aws')
 
 
 class STS:

@@ -1,6 +1,5 @@
 # coding=utf-8
 import argparse
-import logging
 import os
 import re
 import sys
@@ -9,6 +8,10 @@ import zipfile
 from pathlib import Path
 
 import constants
+from Logging import Logging
+import Config
+
+config = Config.Config()
 
 
 class OSInfo:
@@ -45,98 +48,6 @@ class OSInfo:
 
     def which_term(self):
         return self.environment_terminal
-
-
-class ColorManage:
-    @staticmethod
-    def RGB(red=None, green=None, blue=None, bg=False):
-        if bg is False and red is not None and green is not None and blue is not None:
-            return f'\u001b[38;2;{red};{green};{blue}m'
-        elif bg is True and red is not None and green is not None and blue is not None:
-            return f'\u001b[48;2;{red};{green};{blue}m'
-        elif red is None and green is None and blue is None:
-            return '\u001b[0m'
-
-
-class CustomFormatter(logging.Formatter):
-    linux_grey = "\x1B[38;5;7"
-    linux_yellow = "\x1B[38;5;11m"
-    linux_red = "\x1B[38;5;1m"
-    linux_bold_red = "\x1B[38;5;9m"
-    linux_green = "\x1B[38;5;10m"
-    linux_cyan = "\x1B[38;5;14m"
-    linux_reset = "\x1B[0m"
-    format = '[%(asctime)s] [] [%(levelname)s] %(message)s'
-
-    windows_grey = ColorManage.RGB(226, 226, 226)
-    windows_yellow = ColorManage.RGB(255, 255, 0)
-    windows_orange = ColorManage.RGB(255, 141, 79)
-    windows_red = ColorManage.RGB(255, 0, 0)
-    windows_green = ColorManage.RGB(105, 255, 79)
-    windows_reset = ColorManage.RGB()
-
-    os_info = OSInfo()
-    is_xterm = os_info.display_info()
-
-    if is_xterm is True:
-        FORMATS = {
-            logging.DEBUG: linux_grey + format + linux_reset,
-            logging.INFO: linux_green + format + linux_reset,
-            logging.WARNING: linux_yellow + format + linux_reset,
-            logging.ERROR: linux_red + format + linux_reset,
-            logging.CRITICAL: linux_bold_red + format + linux_reset
-        }
-    elif os_info.which_os() == 'windows' and os_info.which_term() is not None:
-        FORMATS = {
-            logging.DEBUG: windows_grey + format + windows_reset,
-            logging.INFO: windows_green + format + windows_reset,
-            logging.WARNING: windows_yellow + format + windows_reset,
-            logging.ERROR: windows_orange + format + windows_reset,
-            logging.CRITICAL: windows_red + format + windows_reset
-        }
-    else:
-        FORMATS = {
-            logging.DEBUG: format,
-            logging.INFO: format,
-            logging.WARNING: format,
-            logging.ERROR: format,
-            logging.CRITICAL: format
-        }
-
-    def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
-        return formatter.format(record)
-
-
-class Logging:
-
-    def __init__(self, name, level=constants.__console_log_level__):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(constants.__console_log_level__)
-        console_handler.setFormatter(CustomFormatter())
-        self.logger.addHandler(console_handler)
-        self.logger.propagate = False
-
-    def set_console_handler(self):
-        return self.logger
-
-    def debug(self, message):
-        self.logger.debug(message)
-
-    def info(self, message):
-        self.logger.info(message)
-
-    def warning(self, message):
-        self.logger.warning(message)
-
-    def error(self, message):
-        self.logger.error(message)
-
-    def critical(self, message):
-        self.logger.critical(message)
 
 
 class Arguments:
@@ -187,9 +98,13 @@ class Arguments:
         self.log_stream = Logging('parse_args')
 
         if self.args.profilename is None and self.args.textmenu is False:
+            run_type = None
             self.log_stream.critical(
                 'A profile name must be specified, or you must specify the text menu option for account selection')
-            sys.exit(1)
+            while run_type is not None:
+                run_type: str = input('Please provide a profilename from ~/.aws/samlsts or textmenu to continue')
+            if run_type == 'textmenu':
+                self.args.textmenu = True
         elif self.args.profilename is not None:
             self.aws_profile_name = self.args.profilename
             if any(x in self.aws_profile_name for x in self.illegal_characters):
@@ -197,8 +112,7 @@ class Arguments:
                 raise SystemExit(1)
 
         if self.args.textmenu is True and self.args.username is None:
-            self.log_stream.warning('Username must be provided to use Text Menu')
-            self.username = input('Please provide your username: ')
+            self.username = get_user_name()
         else:
             self.username = self.args.username
 
@@ -206,7 +120,7 @@ class Arguments:
             get_idp = None
             self.log_stream.info('IdP must be provided to use Text Menu')
             while get_idp not in constants.valid_idp:
-                get_idp = input('Please specify a browser to use [' + ','.join(constants.valid_idp) + '] ')
+                get_idp = input('Please specify an to use [' + ','.join(constants.valid_idp) + '] ')
             self.use_idp = "Fed-" + str(get_idp).upper()
         else:
             self.use_idp = "Fed-" + str(self.args.idp).upper()
@@ -223,11 +137,8 @@ class Arguments:
         else:
             self.session_duration = self.args.duration
 
-        # TODO handle global browser better, this shouldn't be requested if in global section
         if self.args.browser is None:
-            while self.browser_type not in constants.valid_browsers:
-                self.browser_type = input(
-                    'Please specify a browser to use [' + ','.join(constants.valid_browsers) + '] ')
+            self.browser_type = get_browser_type()
         else:
             self.browser_type = self.args.browser
 
@@ -292,3 +203,19 @@ def check_if_container():
         except OSError:
             log_stream.critical('Unable to write container flag file')
             raise SystemExit(1)
+
+
+def get_user_name():
+    aws_region, username, *nonsense = config.read_global_settings()
+    while username is None:
+        username = input('Please provide your username: ')
+    return username
+
+
+@staticmethod
+def get_browser_type():
+    *nonsense, browser = config.read_global_settings()
+    while browser not in constants.valid_browsers:
+        browser = input(
+            'Please specify a browser to use [' + ','.join(constants.valid_browsers) + '] ')
+    return browser

@@ -10,8 +10,9 @@ import Config
 import AWS
 
 import constants
+from Logging import Logging
 
-log_stream = Utilities.Logging('get_credentials')
+log_stream = Logging('get_credentials')
 
 args = Utilities.Arguments()
 config = Config.Config()
@@ -33,8 +34,6 @@ def main():
         log_stream.critical('A browser type must be specified either on the command line'
                             ' or in the global section in the config file')
         raise SystemExit(1)
-    # else:
-    #     driver_executable = Browser.verify_drivers(browser_type)
 
     pass_key, pass_file = config.return_stored_pass_config()
 
@@ -87,11 +86,13 @@ def main():
     get_sts = AWS.STS.aws_assume_role(aws_region, role_arn, principle_arn, saml_response, aws_session_duration)
 
     if len(get_sts) > 0:
-        aws_access_id, aws_secret_key, aws_session_token, sts_expiration\
+        aws_access_id, aws_secret_key, aws_session_token, sts_expiration \
             = AWS.STS.get_sts_details(get_sts)
 
         if Config.validate_aws_cred_format(aws_access_id, aws_secret_key, aws_session_token):
-            profile_block, clean_profile_name = config.write_aws_config(aws_access_id, aws_secret_key, aws_session_token, profile_name, aws_region)
+            profile_block, clean_profile_name = config.write_aws_config(aws_access_id, aws_secret_key,
+                                                                        aws_session_token, profile_name, aws_region,
+                                                                        account_number)
         else:
             log_stream.critical('There seems to be an issue with one of the credentials generated, please try again')
             raise SystemExit(1)

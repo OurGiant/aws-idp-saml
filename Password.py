@@ -10,9 +10,9 @@ from cryptography.fernet import Fernet, InvalidToken
 
 import constants
 import Utilities
+from Logging import Logging
 
-log_stream = Utilities.Logging('password')
-
+log_stream = Logging('password')
 
 def check_store_perms(pass_key):
     """

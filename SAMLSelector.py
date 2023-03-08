@@ -9,8 +9,9 @@ import xml.etree.ElementTree as ET
 import constants
 
 import Utilities
+from Logging import Logging
 
-log_stream = Utilities.Logging('saml_select')
+log_stream = Logging('saml_select')
 
 
 def select_role_from_saml_page(driver, gui_name, iam_role):
@@ -61,6 +62,7 @@ def get_roles_from_saml_response(saml_response, account_map):
                     principle_arn = str(value.text).split(',', 1)[1]
                     role_arn = str(value.text).split(',', 1)[0]
                     account_number = role_arn.split(':')[4]
+                    account_name = account_number
                     role_name = ((role_arn.split(':')[5]).split('/')[1]).split('-', 1)[1]
                     if account_map is None or len(account_map) == 0:
                         table_object.append([role_id, account_number, role_name])
@@ -70,8 +72,8 @@ def get_roles_from_saml_response(saml_response, account_map):
                         for account in account_map:
                             if account['number'] == account_number:
                                 account_name = account['name']
-                            else:
-                                account_name = account_number
+                            # else:
+                            #     account_name = account_number
                         table_object.append([role_id, account_number, account_name, role_name])
 
                     if use_account_name is True:
