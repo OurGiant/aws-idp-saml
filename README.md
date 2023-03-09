@@ -8,8 +8,10 @@ Log into your IdP and retrieve a SAML assertion for AWS. Use SAML assertion to a
 - [Quick Start](#quick-start)
 - [Installing](#installing)
 - - [Configuration](#configuration)
+- - - [Lazy Configuration](#lazy-configuration)
+- - - [Quick Start Configuration](#quick-start-configuration)
 - - [Virtual Environment](#virtual-environment)
-- - [Dependancies](#dependancies)
+- - [Dependencies](#dependancies)
 - - - [Using Poetry](#using-poetry--preferred-)
 - - - [Using pip](#using-pip)
 - - [MacOS Users Special Instructions](#macos-users-special-instructions)
@@ -55,6 +57,19 @@ python3 getCredentials.py --textmenu
 
 See [Configuration File](#configuration-file) for details
 
+#### Lazy Configuration
+
+If you provide no configuration files at start up and use only the --textmenu flag at start up the utility will attempt to build and store configurations for you in the appropriate files. 
+You can then reference these configurations in future runs. The more you use the utility for different accounts, the more complete your configurations will become.
+
+Files built:
+-  ***~/.aws/samlsts***
+-  ***~/.aws/account-map.json***
+
+If you want to configure the files head of the first run, follow the instructions found in this README
+
+
+#### Quick Start Configuration
 Linux
 ```bash
 cp samlsts.demo ~/.aws/samlsts
@@ -376,7 +391,8 @@ Enter the Id of the role to assume:
 
 ```
 
-You can configure an account alisas to account number JSON map in ***~/.aws/account-map.json*** using the example below.   
+You can configure an account alisas to account number JSON map in ***~/.aws/account-map.json*** using the example below.
+This file will also be built for you by running the application. The more accounts you access the larger the map will become.
 
 ```json
 [
