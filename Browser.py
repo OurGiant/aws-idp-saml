@@ -11,10 +11,11 @@ from selenium.common import exceptions as se
 import constants
 import Utilities
 from Logging import Logging
+from OSInfo import OSInfo
 
 log_stream = Logging('browser')
 
-os_info = Utilities.OSInfo()
+os_info = OSInfo()
 operating_system = os_info.which_os()
 
 selenium_timeout = constants.__timeout__
@@ -125,8 +126,8 @@ def verify_drivers(user_browser):
     drivers = None
     driver_executable = None
     if user_browser not in constants.valid_browsers:
-        log_stream.critical('unknown browser specified.browsers currently supported:')
-        log_stream.critical(','.join(constants.valid_browsers))
+        log_stream.fatal('unknown browser specified.browsers currently supported:')
+        log_stream.fatal(','.join(constants.valid_browsers))
         raise SystemExit(1)
 
     driver_files = None
@@ -138,7 +139,7 @@ def verify_drivers(user_browser):
         os.environ['PATH'] += ";" + script_execute_path + '\\drivers\\'
         drivers = script_execute_path + '\\drivers\\'
     else:
-        log_stream.critical('Unknown OS type ' + sys.platform)
+        log_stream.fatal('Unknown OS type ' + sys.platform)
         raise SystemExit(1)
 
     if Path(drivers).is_dir() is False:

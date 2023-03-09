@@ -73,7 +73,6 @@ def get_aws_variables(conf_region, conf_duration, arg_aws_region, arg_session_du
 
 class Config:
     def __init__(self):
-        global log_stream
         self.executePath = str(Path(__file__).resolve().parents[0])
 
         home = str(Path.home())
@@ -116,6 +115,7 @@ class Config:
             self.create_aws_config()
             self.configConfig = configparser.ConfigParser()
             self.configConfig.read(self.awsConfigFile)
+            log_stream.info('Return to normal operations')
 
         self.PassFile = self.AWSRoot + "saml.pass"
         self.PassKey = self.AWSRoot + "saml.key"
@@ -159,7 +159,6 @@ class Config:
             self.create_new_map_file()
 
     def write_account_to_map_file(self, account_name, account_number):
-        self.check_for_map_file()
         with open(self.AccountMap, 'r') as mapfile:
             account_map: list = json.loads(mapfile.read())
         mapfile.close()
@@ -178,12 +177,12 @@ class Config:
             with open(account_map_file, 'r') as mapfile:
                 account_map: list = json.loads(mapfile.read())
             mapfile.close()
+            return account_map
         except FileNotFoundError:
             log_stream.warning('No map file found, using account numbers in display')
             log_stream.info('The accounts map configuration can be provided to you by your AWS team')
-            pass
-
-        return account_map
+            self.check_for_map_file()
+            self.read_map_file()
 
     def read_global_settings(self):
         aws_region = None
@@ -241,11 +240,11 @@ class Config:
         aws_region, username, saved_password, session_duration, browser \
             = self.read_global_settings()
 
-        if text_menu is False:
+        if text_menu is False and aws_profile_name is not None:
             try:
                 self.configSAML.get(aws_profile_name, 'samlProvider')
             except configparser.NoSectionError as e:
-                log_stream.critical('No such AWS profile ' + aws_profile_name)
+                log_stream.fatal('No such AWS profile ' + aws_profile_name)
                 raise SystemExit(1)
 
             log_stream.info('Reading configuration info for profile ' + aws_profile_name)
@@ -265,7 +264,7 @@ class Config:
                 gui_name = self.configSAML[aws_profile_name]['guiName']
             except KeyError as missing_config_error:
                 missing_config_property: str = missing_config_error.args[0]
-                log_stream.critical('Missing configuration property: ' + missing_config_property)
+                log_stream.fatal('Missing configuration property: ' + missing_config_property)
                 raise SystemExit(1)
             role_arn = "arn:aws:iam::" + account_number + ":role/" + iam_role
             saml_provider_name = saml_provider.split('-', 1)[1]
@@ -279,14 +278,14 @@ class Config:
         try:
             self.configSAML.get(saml_provider, 'loginpage')
         except configparser.NoSectionError:
-            log_stream.critical('No such SAML provider ' + saml_provider_name)
+            log_stream.fatal('No such SAML provider ' + saml_provider_name)
             raise SystemExit(1)
         try:
             first_page = self.configSAML[saml_provider]['loginpage']
             idp_login_title = str(self.configSAML[saml_provider]['loginTitle']).replace('"', '')
         except KeyError as missing_saml_provider_error:
             missing_saml_provider_property: str = missing_saml_provider_error.args[0]
-            log_stream.critical('Missing SAML provider configuration property ' + missing_saml_provider_property)
+            log_stream.fatal('Missing SAML provider configuration property ' + missing_saml_provider_property)
             raise SystemExit(1)
 
         return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
@@ -303,7 +302,7 @@ class Config:
         pass
 
     def write_aws_config(self, access_key_id, secret_access_key, aws_session_token, aws_profile_name, aws_region,
-                         account_number):
+                         account_number, used_profile_name_param):
 
         self.configCredentials[aws_profile_name] = {}
         self.configCredentials[aws_profile_name]['aws_access_key_id'] = access_key_id
@@ -323,14 +322,14 @@ class Config:
 
         clean_profile_name, profile_block = self.create_profile_block(aws_profile_name, access_key_id,
                                                                       secret_access_key, aws_region, aws_session_token,
-                                                                      account_number)
+                                                                      account_number, used_profile_name_param)
+        if used_profile_name_param is False:
+            self.configCredentials.remove_section(aws_profile_name)
 
-        self.configCredentials.remove_section(aws_profile_name)
-
-        self.configCredentials[clean_profile_name] = {}
-        self.configCredentials[clean_profile_name]['aws_access_key_id'] = access_key_id
-        self.configCredentials[clean_profile_name]['aws_secret_access_key'] = secret_access_key
-        self.configCredentials[clean_profile_name]['aws_session_token'] = aws_session_token
+            self.configCredentials[clean_profile_name] = {}
+            self.configCredentials[clean_profile_name]['aws_access_key_id'] = access_key_id
+            self.configCredentials[clean_profile_name]['aws_secret_access_key'] = secret_access_key
+            self.configCredentials[clean_profile_name]['aws_session_token'] = aws_session_token
 
         with open(self.awsCredentialsFile, "w") as credentials:
             self.configCredentials.write(credentials)
@@ -339,14 +338,17 @@ class Config:
         return profile_block, clean_profile_name
 
     def create_profile_block(self, aws_profile_name, access_key_id, secret_access_key, aws_region, aws_session_token,
-                             account_number):
-        aws_role = aws_profile_name.split('-', 1)[1]
-        account_name = AWS.IAM.get_account_alias(aws_profile_name)
-        if account_name is not None:
-            profile_name: str = account_name + '-' + aws_role
-            self.write_account_to_map_file(account_name, account_number)
+                             account_number, used_profile_name_param):
+        if used_profile_name_param is False:
+            aws_role = aws_profile_name.split('-', 1)[1]
+            account_name = AWS.IAM.get_account_alias(aws_profile_name)
+            if account_name is not None:
+                profile_name: str = account_name + '-' + aws_role
+                self.write_account_to_map_file(account_name, account_number)
+            else:
+                profile_name: str = account_number + '-' + aws_role
         else:
-            profile_name: str = account_number + '-' + aws_role
+            profile_name = aws_profile_name
 
         profile_block = "[" + profile_name + "]\n" "region = " + aws_region + "\naws_access_key_id =  " + \
                         access_key_id + "\naws_secret_access_key =  " + secret_access_key + "\naws_session_token =  " \

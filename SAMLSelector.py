@@ -39,7 +39,7 @@ def get_roles_from_saml_response(saml_response, account_map):
     try:
         decoded_saml_bytes = base64.b64decode(saml_response)
     except binascii.Error as decode_error:
-        log_stream.critical('SAML Response was not an encoded string. Unable to continue')
+        log_stream.fatal('SAML Response was not an encoded string. Unable to continue')
         log_stream.critical(str(decode_error))
         raise SystemExit(1)
     decoded_saml = decoded_saml_bytes.decode('utf-8')

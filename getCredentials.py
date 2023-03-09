@@ -31,7 +31,7 @@ def main():
 
     browser_type = arg_browser_type if arg_browser_type is not None else config_browser_type
     if browser_type is None:
-        log_stream.critical('A browser type must be specified either on the command line'
+        log_stream.fatal('A browser type must be specified either on the command line'
                             ' or in the global section in the config file')
         raise SystemExit(1)
 
@@ -62,7 +62,7 @@ def main():
 
     log_stream.info('SAML Response Size: ' + str(len(saml_response)))
     if len(saml_response) < 50:
-        log_stream.critical("Issue with logging into Identity Provider: " + saml_response)
+        log_stream.fatal("Issue with logging into Identity Provider: " + saml_response)
         raise SystemExit(1)
 
     if text_menu is True:
@@ -74,6 +74,7 @@ def main():
         role_arn = selected_role['arn']
         principle_arn = selected_role['principle']
         profile_name = selected_role['rolename']
+        used_profile_name_param = False
         try:
             account_name = selected_role['account_name']
         except KeyError:
@@ -81,6 +82,7 @@ def main():
         account_number = selected_role['account_number']
     else:
         profile_name = aws_profile_name
+        used_profile_name_param = True
         account_name = gui_name
 
     get_sts = AWS.STS.aws_assume_role(aws_region, role_arn, principle_arn, saml_response, aws_session_duration)
@@ -92,9 +94,9 @@ def main():
         if Config.validate_aws_cred_format(aws_access_id, aws_secret_key, aws_session_token):
             profile_block, clean_profile_name = config.write_aws_config(aws_access_id, aws_secret_key,
                                                                         aws_session_token, profile_name, aws_region,
-                                                                        account_number)
+                                                                        account_number, used_profile_name_param)
         else:
-            log_stream.critical('There seems to be an issue with one of the credentials generated, please try again')
+            log_stream.fatal('There seems to be an issue with one of the credentials generated, please try again')
             raise SystemExit(1)
 
         aws_user_id = AWS.STS.get_aws_caller_id(clean_profile_name)
@@ -120,7 +122,7 @@ def main():
             log_stream.info('You can reference this profile like --profilename ' + clean_profile_name)
 
     else:
-        log_stream.critical("Corrupt or Unavailable STS Response")
+        log_stream.fatal("Corrupt or Unavailable STS Response")
         raise SystemExit(1)
 
 

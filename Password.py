@@ -37,7 +37,7 @@ def check_store_perms(pass_key):
     st = os.stat(key_path)
     mode = int(st.st_mode)
     if mode > safe_perms:
-        log_stream.critical('Permissions on your store directory are too permissive. Please secure this directory from '
+        log_stream.fatal('Permissions on your store directory are too permissive. Please secure this directory from '
                             'reading by anyone other than the owner')
         raise SystemExit(1)
 

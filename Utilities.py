@@ -1,59 +1,22 @@
 # coding=utf-8
 import argparse
 import os
-import re
 import sys
 import tarfile
 import zipfile
 from pathlib import Path
 
 import constants
-from Logging import Logging
 import Config
+from Logging import Logging
 
+log_stream = Logging('utilities')
 config = Config.Config()
-
-
-class OSInfo:
-    def __init__(self):
-        os_types = [
-            {'name': 'windows', 'sysname': 'win32'},
-            {'name': 'macos', 'sysname': 'darwin'},
-            {'name': 'linux', 'sysname': 'linux'},
-        ]
-
-        for os_type in os_types:
-            if os_type['sysname'] == sys.platform:
-                self.operating_system = os_type['name']
-
-        self.environment_terminal = os.environ.get('TERM')
-
-    def display_info(self):
-        xterm_pattern = re.compile('xterm.*')
-
-        if self.operating_system == 'linux':
-            if self.environment_terminal is None:
-                is_xterm = False
-                return is_xterm
-            try:
-                is_xterm = bool(xterm_pattern.match(self.environment_terminal))
-            except ValueError:
-                is_xterm = False
-        else:
-            is_xterm = False
-        return is_xterm
-
-    def which_os(self):
-        return self.operating_system
-
-    def which_term(self):
-        return self.environment_terminal
 
 
 class Arguments:
     def __init__(self):
         self.username = None
-        self.log_stream = Logging('args_init')
         self.use_idp = None
         self.text_menu: bool = False
         self.aws_region = None
@@ -88,37 +51,37 @@ class Arguments:
         self.parser.add_argument("--debug", type=bool, default=False, nargs='?', const=True,
                                  help="show browser during SAML attempt")
         if len(sys.argv) == 0:
-            self.log_stream.critical("Arguments required")
+            log_stream.fatal("Arguments required")
             self.parser.print_help()
             raise SystemExit(1)
         else:
             self.args = self.parser.parse_args()
 
     def parse_args(self):
-        self.log_stream = Logging('parse_args')
 
         if self.args.profilename is None and self.args.textmenu is False:
             run_type = None
-            self.log_stream.critical(
+            log_stream.critical(
                 'A profile name must be specified, or you must specify the text menu option for account selection')
-            while run_type is not None:
-                run_type: str = input('Please provide a profilename from ~/.aws/samlsts or textmenu to continue')
+            while run_type is None:
+                run_type = input('Please provide a profilename from ~/.aws/samlsts or textmenu to continue: ')
             if run_type == 'textmenu':
                 self.args.textmenu = True
         elif self.args.profilename is not None:
             self.aws_profile_name = self.args.profilename
             if any(x in self.aws_profile_name for x in self.illegal_characters):
-                self.log_stream.critical('bad characters in profile name, only alphanumeric and dash are allowed. ')
+                log_stream.fatal('bad characters in profile name, only alphanumeric and dash are allowed. ')
                 raise SystemExit(1)
 
         if self.args.textmenu is True and self.args.username is None:
+            log_stream.warning('No username specified, checking global settings')
             self.username = get_user_name()
         else:
             self.username = self.args.username
 
         if self.args.textmenu is True and self.args.idp is None:
             get_idp = None
-            self.log_stream.info('IdP must be provided to use Text Menu')
+            log_stream.info('IdP must be provided to use Text Menu')
             while get_idp not in constants.valid_idp:
                 get_idp = input('Please specify an to use [' + ','.join(constants.valid_idp) + '] ')
             self.use_idp = "Fed-" + str(get_idp).upper()
@@ -129,15 +92,17 @@ class Arguments:
             self.aws_profile_name = "None"
 
         if self.args.gui is True and self.args.textmenu is True:
-            self.log_stream.critical('You cannot combine GUI and Text Menu options. Please choose one or the other')
+            log_stream.fatal('You cannot combine GUI and Text Menu options. Please choose one or the other')
             raise SystemExit(1)
 
         if not self.args.duration:
-            self.session_duration = 0
+            log_stream.warning('No session duration specified, checking global settings')
+            self.session_duration = get_session_duration()
         else:
             self.session_duration = self.args.duration
 
         if self.args.browser is None:
+            log_stream.warning('No browser specified, checking global settings')
             self.browser_type = get_browser_type()
         else:
             self.browser_type = self.args.browser
@@ -150,9 +115,6 @@ class Arguments:
 
         return self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
             self.store_password, self.session_duration, self.aws_region, self.text_menu, self.use_idp, self.username
-
-
-log_stream = Logging('utilities')
 
 
 def extract_zip_archive(archive_file_name):
@@ -201,7 +163,7 @@ def check_if_container():
                 fh.write(open('/var/run/systemd/container').read())
             fh.close()
         except OSError:
-            log_stream.critical('Unable to write container flag file')
+            log_stream.fatal('Unable to write container flag file')
             raise SystemExit(1)
 
 
@@ -212,10 +174,16 @@ def get_user_name():
     return username
 
 
-@staticmethod
 def get_browser_type():
     *nonsense, browser = config.read_global_settings()
     while browser not in constants.valid_browsers:
         browser = input(
             'Please specify a browser to use [' + ','.join(constants.valid_browsers) + '] ')
     return browser
+
+
+def get_session_duration():
+    *nonsense, session_duration, browser = config.read_global_settings()
+    if session_duration is None:
+        session_duration = 0
+    return session_duration

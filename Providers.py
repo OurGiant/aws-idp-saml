@@ -102,7 +102,7 @@ class UseIdP:
         try:
             completed_login = wait.until(ec.title_is(saml_page_title))
         except se.TimeoutException:
-            log_stream.info('Timeout waiting for MFA')
+            log_stream.fatal('Timeout waiting for MFA')
             log_stream.info('Saving screenshot for debugging')
             screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
             driver.save_screenshot(screenshot)

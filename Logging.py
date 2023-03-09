@@ -2,7 +2,9 @@ import logging
 import sys
 
 import constants
-from Utilities import OSInfo
+from OSInfo import OSInfo
+
+os_info = OSInfo()
 
 
 class ColorManage:
@@ -23,6 +25,7 @@ class CustomFormatter(logging.Formatter):
     linux_bold_red = "\x1B[38;5;9m"
     linux_green = "\x1B[38;5;10m"
     linux_cyan = "\x1B[38;5;14m"
+    linux_dark_violet = "\x1B[38:5:128m"
     linux_reset = "\x1B[0m"
     format = '[%(asctime)s] [] [%(levelname)s] %(message)s'
 
@@ -33,7 +36,6 @@ class CustomFormatter(logging.Formatter):
     windows_green = ColorManage.RGB(105, 255, 79)
     windows_reset = ColorManage.RGB()
 
-    os_info = OSInfo()
     is_xterm = os_info.display_info()
 
     if is_xterm is True:
@@ -42,7 +44,8 @@ class CustomFormatter(logging.Formatter):
             logging.INFO: linux_green + format + linux_reset,
             logging.WARNING: linux_yellow + format + linux_reset,
             logging.ERROR: linux_red + format + linux_reset,
-            logging.CRITICAL: linux_bold_red + format + linux_reset
+            logging.CRITICAL: linux_bold_red + format + linux_reset,
+            logging.FATAL: linux_dark_violet + format + linux_reset
         }
     elif os_info.which_os() == 'windows' and os_info.which_term() is not None:
         FORMATS = {
@@ -50,7 +53,8 @@ class CustomFormatter(logging.Formatter):
             logging.INFO: windows_green + format + windows_reset,
             logging.WARNING: windows_yellow + format + windows_reset,
             logging.ERROR: windows_orange + format + windows_reset,
-            logging.CRITICAL: windows_red + format + windows_reset
+            logging.CRITICAL: windows_red + format + windows_reset,
+            logging.FATAL: windows_red + format + windows_reset
         }
     else:
         FORMATS = {
@@ -58,7 +62,8 @@ class CustomFormatter(logging.Formatter):
             logging.INFO: format,
             logging.WARNING: format,
             logging.ERROR: format,
-            logging.CRITICAL: format
+            logging.CRITICAL: format,
+            logging.FATAL: format
         }
 
     def format(self, record):
@@ -94,5 +99,8 @@ class Logging:
         self.logger.error(message)
 
     def critical(self, message):
+        self.logger.critical(message)
+
+    def fatal(self, message):
         self.logger.critical(message)
 
