@@ -1,9 +1,7 @@
 # coding=utf-8
-import sys
-import time
-from pathlib import Path
 
-from selenium import webdriver
+import time
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,11 +9,11 @@ from selenium.common import exceptions as se
 
 import SAMLSelector
 import constants
-import Utilities
 import Providers
 import Browser
+from Logging import Logging
 
-log_stream = Utilities.Logging('login')
+log_stream = Logging('login')
 
 saml_page_title = "Amazon Web Services Sign-In"
 

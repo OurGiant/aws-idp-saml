@@ -9,8 +9,9 @@ from selenium.common import exceptions as se
 
 import constants
 import Utilities
+from Logging import Logging
 
-log_stream = Utilities.Logging('providers')
+log_stream = Logging('providers')
 
 saml_page_title = "Amazon Web Services Sign-In"
 xpath_locator = By.XPATH
@@ -101,7 +102,7 @@ class UseIdP:
         try:
             completed_login = wait.until(ec.title_is(saml_page_title))
         except se.TimeoutException:
-            log_stream.info('Timeout waiting for MFA')
+            log_stream.fatal('Timeout waiting for MFA')
             log_stream.info('Saving screenshot for debugging')
             screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
             driver.save_screenshot(screenshot)
