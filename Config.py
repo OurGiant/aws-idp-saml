@@ -382,16 +382,19 @@ class Config:
             return False
         else:
             log_stream.warning('profile ' + profile_name + ' missing, creating')
-            self.configSAML.add_section(profile_name)
-            self.configSAML[profile_name]['awsregion'] = str(aws_region)
-            self.configSAML[profile_name]['username'] = str(username)
-            self.configSAML[profile_name]['samlprovider'] = str(saml_provider)
-            self.configSAML[profile_name]['iamrole'] = str(role_name)
-            self.configSAML[profile_name]['accountnumber'] = str(account_number)
-            with open(self.awsSAMLFile, 'w') as saml_file:
-                self.configSAML.write(saml_file)
-            saml_file.close()
-            return True
+            try:
+                self.configSAML.add_section(profile_name)
+                self.configSAML[profile_name]['awsregion'] = str(aws_region)
+                self.configSAML[profile_name]['username'] = str(username)
+                self.configSAML[profile_name]['samlprovider'] = str(saml_provider)
+                self.configSAML[profile_name]['iamrole'] = str(role_name)
+                self.configSAML[profile_name]['accountnumber'] = str(account_number)
+                with open(self.awsSAMLFile, 'w') as saml_file:
+                    self.configSAML.write(saml_file)
+                saml_file.close()
+                return True
+            except configparser.DuplicateSectionError:
+                log_stream.info('This profile already exists')
 
     def check_global_in_saml_config(self):
 
