@@ -6,3 +6,4 @@ __pycache__/*
 drivers/*
 /venv/
 /poetry.lock
+/docker/Dockerfile-amzlnx2
