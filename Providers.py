@@ -65,16 +65,16 @@ class UseIdP:
             saml_response = "CouldNotEnterFormData"
             return saml_response
 
-        try:
-            # Select the "Use password" option and click it
-            use_password_button = wait.until(ec.element_to_be_clickable((xpath_locator, select_use_password)))
-            log_stream.info('Select Password Entry')
-            # css_selector = use_password_button.get_attribute('css_selector')
-            # log_stream.info('Use password button css selector' + str(css_selector))
-            use_password_button.click()
-        except se.ElementClickInterceptedException:
-            saml_response = "CouldNotEnterFormData"
-            return saml_response
+        # try:
+        #     # Select the "Use password" option and click it
+        #     use_password_button = wait.until(ec.element_to_be_clickable((xpath_locator, select_use_password)))
+        #     log_stream.info('Select Password Entry')
+        #     # css_selector = use_password_button.get_attribute('css_selector')
+        #     # log_stream.info('Use password button css selector' + str(css_selector))
+        #     use_password_button.click()
+        # except se.ElementClickInterceptedException:
+        #     saml_response = "CouldNotEnterFormData"
+        #     return saml_response
 
         try:
             # Enter the password and click the "Next" button
