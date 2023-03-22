@@ -23,7 +23,8 @@ def main():
         arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
-        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, account_number \
+        saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, account_number, \
+        dsso_url \
         = config.read_config(aws_profile_name, text_menu, use_idp, arg_username)
 
     aws_region, aws_session_duration = Config.get_aws_variables(config_aws_region, config_session_duration,
@@ -32,7 +33,7 @@ def main():
     browser_type = arg_browser_type if arg_browser_type is not None else config_browser_type
     if browser_type is None:
         log_stream.fatal('A browser type must be specified either on the command line'
-                            ' or in the global section in the config file')
+                         ' or in the global section in the config file')
         raise SystemExit(1)
 
     pass_key, pass_file = config.return_stored_pass_config()
@@ -58,7 +59,7 @@ def main():
                                         browser_type,
                                         saml_provider_name,
                                         idp_login_title,
-                                        role_arn, gui_name)
+                                        role_arn, gui_name, dsso_url)
 
     log_stream.info('SAML Response Size: ' + str(len(saml_response)))
     if len(saml_response) < 50:

@@ -31,7 +31,7 @@ def get_saml_response(driver):
 
 
 def browser_login(username, password, first_page, use_debug, use_gui, browser, saml_provider_name,
-                  idp_login_title, iam_role, gui_name):
+                  idp_login_title, iam_role, gui_name, dsso_url):
 
     completed_login: bool = False
 
@@ -55,7 +55,7 @@ def browser_login(username, password, first_page, use_debug, use_gui, browser, s
             if saml_provider_name == 'PING':
                 completed_login = Providers.UseIdP.ping_sign_in(wait, driver, username, password)
             if saml_provider_name == 'OKTA':
-                completed_login = Providers.UseIdP.okta_sign_in(wait, driver, username, password)
+                completed_login = Providers.UseIdP.okta_sign_in(wait, driver, username, password, dsso_url)
         elif driver.title == "Amazon Web Services Sign-In":
             completed_login = True
         else:
