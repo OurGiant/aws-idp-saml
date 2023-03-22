@@ -21,20 +21,31 @@ link_text_locator = By.LINK_TEXT
 name_locator = By.NAME
 
 
+def click_okta_mfa(wait):
+    select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[2]/div[2]/div[2]/a'
+    try:
+        # Select the push notification option and click it
+        log_stream.info('Select Push Notification')
+        send_push_notification = wait.until(ec.element_to_be_clickable((xpath_locator, select_push_notification)))
+        send_push_notification.click()
+    except se.ElementClickInterceptedException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
+
+
 class UseIdP:
 
     @staticmethod
-    def okta_sign_in(wait, driver, username, password, completed_login=False, saml_response=None):
+    def okta_sign_in(wait, driver, username, password, dsso_url):
         """
         Attempts to sign in to Okta using the given credentials.
 
         Args:
+            dsso_url: (str): The url indicating DSSO is in use.
             wait (WebDriverWait): The WebDriverWait instance to wait for elements.
             driver (WebDriver): The WebDriver instance used to navigate to Okta login page.
             username (str): The username to log in with.
             password (str): The password to log in with.
-            completed_login (bool, optional): A flag to indicate whether the login is completed or not. Defaults to False.
-            saml_response (str, optional): The SAML response. Defaults to None.
 
         Returns:
             bool: A flag to indicate whether the login was successful or not.
@@ -43,11 +54,12 @@ class UseIdP:
             SystemExit: If the login times out waiting for MFA and cannot be completed.
         """
         global saml_page_title
+        use_dsso = False
         # Define XPath selectors for various page elements
         username_next_button = 'button-primary'
         select_use_password = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[3]/div[2]/div[2]'
         password_next_button = 'button-primary'
-        select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[2]/div[2]/div[2]/a'
+
         username_field = "identifier"
         password_field = "password-with-toggle"
 
@@ -65,40 +77,37 @@ class UseIdP:
             saml_response = "CouldNotEnterFormData"
             return saml_response
 
-        # try:
-        #     # Select the "Use password" option and click it
-        #     use_password_button = wait.until(ec.element_to_be_clickable((xpath_locator, select_use_password)))
-        #     log_stream.info('Select Password Entry')
-        #     # css_selector = use_password_button.get_attribute('css_selector')
-        #     # log_stream.info('Use password button css selector' + str(css_selector))
-        #     use_password_button.click()
-        # except se.ElementClickInterceptedException:
-        #     saml_response = "CouldNotEnterFormData"
-        #     return saml_response
+        if driver.capabilities['browserName'] == 'chrome':
+            log_stream.info('Checking for DSSO')
+            try:
+                wait.until(ec.url_to_be(dsso_url))
+                log_stream.info('Follow DSSO Path')
+                saml_response = click_okta_mfa(wait)
+                use_dsso = True
+                if saml_response == "CouldNotEnterFormData":
+                    return saml_response
+            except se.TimeoutException:
+                log_stream.info('Follow DSSO Path')
+                log_stream('Not using DSSO')
 
-        try:
-            # Enter the password and click the "Next" button
-            log_stream.info('Enter Password')
-            password_dialog = wait.until(ec.element_to_be_clickable((class_name_locator, password_field)))
-            password_dialog.clear()
-            password_dialog.send_keys(password)
-            log_stream.info('Click Button')
-            password_next_button = driver.find_element(class_name_locator, password_next_button)
-            password_next_button.click()
-        except se.NoSuchElementException:
-            saml_response = "CouldNotEnterFormData"
-            return saml_response
+        if use_dsso == False:
+            try:
+                # Enter the password and click the "Next" button
+                log_stream.info('Enter Password')
+                password_dialog = wait.until(ec.element_to_be_clickable((class_name_locator, password_field)))
+                password_dialog.clear()
+                password_dialog.send_keys(password)
+                log_stream.info('Click Button')
+                password_next_button = driver.find_element(class_name_locator, password_next_button)
+                password_next_button.click()
+            except se.NoSuchElementException:
+                saml_response = "CouldNotEnterFormData"
+                return saml_response
 
-        try:
-            # Select the push notification option and click it
-            log_stream.info('Select Push Notification')
-            send_push_notification = wait.until(ec.element_to_be_clickable((xpath_locator, select_push_notification)))
-            # css_selector = send_push_notification.get_attribute('css_selector')
-            # log_stream.info('send push notification css selector' + str(css_selector))
-            send_push_notification.click()
-        except se.ElementClickInterceptedException:
-            saml_response = "CouldNotEnterFormData"
-            return saml_response
+            saml_response = click_okta_mfa(wait)
+            if saml_response == "CouldNotEnterFormData":
+                return saml_response
+
         try:
             completed_login = wait.until(ec.title_is(saml_page_title))
         except se.TimeoutException:

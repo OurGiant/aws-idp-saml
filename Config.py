@@ -235,6 +235,7 @@ class Config:
         browser = None
         username = None
         saved_password = None
+        dsso_url = None
 
         # check for global variables. read if any, these will be overwritten by CLI and configuration in account blocks
         aws_region, username, saved_password, session_duration, browser \
@@ -288,8 +289,13 @@ class Config:
             log_stream.fatal('Missing SAML provider configuration property ' + missing_saml_provider_property)
             raise SystemExit(1)
 
+        try:
+            dsso_url = self.configSAML[saml_provider]['dssoUrl']
+        except KeyError as missing_dsso_url:
+            log_stream.info('Not configured to use DSSO. If your organization has this feature enabled and it is not configured the request will timeout')
+
         return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
-            saml_provider_name, idp_login_title, gui_name, browser, saved_password, account_number
+            saml_provider_name, idp_login_title, gui_name, browser, saved_password, account_number, dsso_url
 
     def revoke_creds(self, profile_name):
         self.configCredentials[profile_name] = {}
