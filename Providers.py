@@ -63,20 +63,6 @@ class UseIdP:
         username_field = "identifier"
         password_field = "password-with-toggle"
 
-        username_next_button = wait.until(ec.element_to_be_clickable((class_name_locator, username_next_button)))
-        log_stream.info('Use Okta Login')
-        try:
-            # Enter the username and click the "Next" button
-            log_stream.info('Enter Username')
-            username_dialog = driver.find_element(name_locator, username_field)
-            username_dialog.clear()
-            username_dialog.send_keys(username)
-            log_stream.info('Click Button')
-            username_next_button.click()
-        except se.NoSuchElementException:
-            saml_response = "CouldNotEnterFormData"
-            return saml_response
-
         if driver.capabilities['browserName'] == 'chrome':
             log_stream.info('Checking for DSSO')
             try:
@@ -89,8 +75,22 @@ class UseIdP:
             except se.TimeoutException:
                 log_stream.info('Follow DSSO Path')
                 log_stream('Not using DSSO')
+        if not use_dsso:
+            username_next_button = wait.until(ec.element_to_be_clickable((class_name_locator, username_next_button)))
+            log_stream.info('Use Okta Login')
+            try:
+                # Enter the username and click the "Next" button
+                log_stream.info('Enter Username')
+                username_dialog = driver.find_element(name_locator, username_field)
+                username_dialog.clear()
+                username_dialog.send_keys(username)
+                log_stream.info('Click Button')
+                username_next_button.click()
+            except se.NoSuchElementException:
+                saml_response = "CouldNotEnterFormData"
+                return saml_response
 
-        if use_dsso == False:
+        if not use_dsso:
             try:
                 # Enter the password and click the "Next" button
                 log_stream.info('Enter Password')
