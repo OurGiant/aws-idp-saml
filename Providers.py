@@ -74,7 +74,7 @@ class UseIdP:
                     return saml_response
             except se.TimeoutException:
                 log_stream.info('Follow DSSO Path')
-                log_stream('Not using DSSO')
+                log_stream.info('Not using DSSO')
         if not use_dsso:
             username_next_button = wait.until(ec.element_to_be_clickable((class_name_locator, username_next_button)))
             log_stream.info('Use Okta Login')
