@@ -126,6 +126,7 @@ def extract_zip_archive(archive_file_name):
     except zipfile.BadZipfile as e:
         log_stream.critical(str(e))
         return False
+    log_stream.info('Removing archive file')
     os.remove(archive_file_name)
     return True
 

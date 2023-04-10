@@ -24,7 +24,8 @@ valid_idp = ['okta', 'ping']
 chrome_remote_files = {
     "windows": "chromedriver_win32.zip",
     "linux": "chromedriver_linux64.zip",
-    "macos": "chromedriver_mac64.zip"
+    "macos": "chromedriver_mac64.zip",
+    "macos-arm": "chromedriver_mac_arm64.zip"
 }
 
 chrome_local_file = {
