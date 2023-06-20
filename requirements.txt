@@ -2,7 +2,7 @@ boto3
 beautifulsoup4
 lxml
 requests
-selenium
+selenium==4.9.1
 botocore
 cryptography
 tabulate
