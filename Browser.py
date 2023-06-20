@@ -176,6 +176,7 @@ def browser_debugging_options(options):
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.set_preference("webdriver.log.level", "OFF")
+    return options
 
 
 def setup_browser(user_browser, use_debug):
@@ -201,7 +202,7 @@ def setup_browser(user_browser, use_debug):
         from selenium.webdriver.firefox.options import Options as Firefox
         browser_options = Firefox()
         if use_debug is False:
-            browser_debugging_options(browser_options)
+            browser_options = browser_debugging_options(browser_options)
         if os_info.which_os() == 'linux':
             driver_executable, binary_location = gecko_from_snap()
             if binary_location is not None:
@@ -225,7 +226,7 @@ def setup_browser(user_browser, use_debug):
         from selenium.webdriver.chrome.options import Options as Chrome
         browser_options = Chrome()
         if use_debug is False:
-            browser_debugging_options(browser_options)
+            browser_options = browser_debugging_options(browser_options)
         browser_options.add_argument("--disable-dev-shm-usage")
         driver_executable = verify_drivers('chrome')
 
