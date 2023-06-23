@@ -175,7 +175,8 @@ def verify_drivers(user_browser):
 def browser_debugging_options(options):
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
-    options.set_preference("webdriver.log.level", "OFF")
+    # TODO working only for Firefox
+    # options.set_preference("webdriver.log.level", "OFF")
     return options
 
 
