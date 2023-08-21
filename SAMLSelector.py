@@ -14,25 +14,31 @@ from Logging import Logging
 log_stream = Logging('saml_select')
 
 
-def select_role_from_saml_page(driver, gui_name, iam_role):
+def select_role_from_saml_page(driver, gui_name, iam_role, design):
     driver.maximize_window()
-    x = 0
-    saml_accounts = {}
-    while x < len(driver.find_elements(By.CLASS_NAME, "saml-account-name")):
-        saml_account = str(driver.find_elements(By.CLASS_NAME, "saml-account-name")[x].text)
-        saml_account = saml_account.replace('(', '').replace(')', '').replace(':', '')
-        saml_account_name = saml_account.split(' ')[1]
-        saml_account_token = saml_account.split(' ')[2]
-        saml_accounts.update({saml_account_name: saml_account_token})
-        x += 1
+    if design == "A":
+        x = 0
+        saml_accounts = {}
+        while x < len(driver.find_elements(By.CLASS_NAME, "saml-account-name")):
+            saml_account = str(driver.find_elements(By.CLASS_NAME, "saml-account-name")[x].text)
+            saml_account = saml_account.replace('(', '').replace(')', '').replace(':', '')
+            saml_account_name = saml_account.split(' ')[1]
+            saml_account_token = saml_account.split(' ')[2]
+            saml_accounts.update({saml_account_name: saml_account_token})
+            x += 1
 
-    requested_account_token = saml_accounts.get(gui_name)
+        requested_account_token = saml_accounts.get(gui_name)
 
-    account_radio_id = iam_role
-    account_radio = driver.find_element(By.ID, account_radio_id)
-    account_radio.click()
-    sign_in_button = driver.find_element(By.ID, "signin_button")
-    sign_in_button.click()
+        account_radio_id = iam_role
+        account_radio = driver.find_element(By.ID, account_radio_id)
+        account_radio.click()
+        sign_in_button = driver.find_element(By.ID, "signin_button")
+        sign_in_button.click()
+    if design == "B":
+        # arn:aws:iam::731057057198:role/Fed-Administrator
+        account_hyperlink = driver.find_element(By.ID, iam_role)
+        account_hyperlink.click()
+
 
 
 def get_roles_from_saml_response(saml_response, account_map):
