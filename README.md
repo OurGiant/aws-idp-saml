@@ -513,7 +513,7 @@ This project is licensed under the [Apache License 2.0](https://www.apache.org/l
 ***testing and contributions made by:***
 
 - Craig Dobson
-- Tim Dady
-- Mary James
-- Basheer Shaik
-- Luis Langa
+  - Tim Dady
+  - Mary James
+  - Basheer Shaik
+  - Luis Langa
