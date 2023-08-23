@@ -49,19 +49,17 @@ def browser_login(username, password, first_page, use_debug, use_gui, browser, s
             saml_response = "CouldNameLoadSignInPage"
             return saml_response
 
-        log_stream.info('Sign In Page Title is ' + driver.title)
-
-        if driver.title == idp_login_title:
-            if saml_provider_name == 'PING':
-                completed_login = Providers.UseIdP.ping_sign_in(wait, driver, username, password)
-            if saml_provider_name == 'OKTA':
-                completed_login = Providers.UseIdP.okta_sign_in(wait, driver, username, password, dsso_url)
-        elif driver.title == "Amazon Web Services Sign-In":
-            completed_login = True
-        else:
-            saml_response = "WrongLoginPageTitle"
-            completed_login = False
-            return saml_response
+        if saml_provider_name == 'PING':
+            completed_login = Providers.UseIdP.ping_sign_in(wait, driver, username, password)
+        if saml_provider_name == 'OKTA':
+            completed_login = Providers.UseIdP.okta_sign_in(wait, driver, username, password, dsso_url)
+        # if driver.title.casefold() == idp_login_title.casefold():
+        # elif driver.title == "Amazon Web Services Sign-In":
+        #     completed_login = True
+        # else:
+        #     saml_response = "WrongLoginPageTitle"
+        #     completed_login = False
+        #     return saml_response
 
         time.sleep(2)
 

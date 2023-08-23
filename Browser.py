@@ -93,14 +93,16 @@ def download_gecko_driver():
 
 
 def get_chrome_latest_version():
-    latest_version_url = "https://chromedriver.storage.googleapis.com/LATEST_RELEASE"
+    latest_version_url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json"
     request_response = requests.get(latest_version_url)
-    latest_chrome_driver_version = request_response.content.decode()
+    response_content = request_response.json()
+    log_stream.info(response_content)
+    latest_chrome_driver_version = response_content.get('channels').get('Stable').get('version')
     return latest_chrome_driver_version
 
 
 def download_chromedriver():
-    chrome_driver_base_url = 'https://chromedriver.storage.googleapis.com/'
+    chrome_driver_base_url = 'https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/'
     version = get_chrome_latest_version()
     chrome_driver_base_url = chrome_driver_base_url + version + '/'
     remote_chrome_file = constants.chrome_remote_files[operating_system]
@@ -110,17 +112,41 @@ def download_chromedriver():
     chrome_driver_download_url = chrome_driver_base_url + remote_chrome_file
     log_stream.info('Downloading driver from ' + chrome_driver_download_url)
     get_driver = requests.get(chrome_driver_download_url)
-    driver_archive = 'drivers/' + remote_chrome_file
+    #driver_archive = 'drivers/' + remote_chrome_file
+
+    local_file_name = remote_chrome_file.split('/')[1]
+    log_stream.info('Local File Name: ' + local_file_name)
+    driver_archive = 'drivers/' + local_file_name
+    log_stream.info('Driver Archive: ' + driver_archive)
+
     if get_driver.status_code == 200:
-        with open(driver_archive, 'wb') as driver_file:
-            driver_file.write(get_driver.content)
-        driver_file.close()
-        local_file = 'drivers/' + constants.chrome_local_file[operating_system]
+        local_file = 'drivers/' + local_file_name
+        log_stream.info('Local File: ' + local_file)
         try:
+            log_stream.info('Remove Local File: ' + local_file)
             os.remove(local_file)
         except FileNotFoundError:
             pass
+        with open(driver_archive, 'wb') as driver_file:
+            log_stream.info('Working with Driver File')
+            driver_file.write(get_driver.content)
+        driver_file.close()
         success = Utilities.extract_zip_archive(driver_archive)
+
+        sub_folder_name = local_file_name.split('.')[0]
+        log_stream.info('Sub Folder Name: ' + sub_folder_name)
+
+        # Move files into /driver folder
+        source = 'drivers/' + sub_folder_name
+        destination = 'drivers'
+        allfiles = os.listdir(source)
+
+        # iterate on all files to move them to destination folder
+        for f in allfiles:
+            src_path = os.path.join(source, f)
+            dst_path = os.path.join(destination, f)
+            os.rename(src_path, dst_path)
+
         # Set driver permissions
         os.chmod('drivers/chromedriver', 755)
 
