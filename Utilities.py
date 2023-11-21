@@ -143,11 +143,16 @@ def extract_zip_archive(archive_file_name):
 def extract_tgz_archive(archive_file_name):
     try:
         log_stream.info('untar driver archive ' + archive_file_name)
+        do_extract: bool = True
         with tarfile.open(archive_file_name, 'r:gz') as tar_ref:
             for member in tar_ref.getmembers():
                 if not os.path.abspath(os.path.join('drivers/', member.name)).startswith(os.path.abspath('drivers/')):
+                    do_extract = False
                     raise ValueError(f"Unsafe tar extraction: {member.name}")
-            tar_ref.extractall('drivers/')
+            if do_extract:
+                tar_ref.extractall(path='drivers/', filter='data')
+            else:
+                return False
         tar_ref.close()
     except tarfile.ReadError as e:
         log_stream.critical('Error reading archive:' + str(e))
