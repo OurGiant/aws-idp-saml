@@ -1,8 +1,11 @@
 boto3
 beautifulsoup4
-lxml
-requests
+lxml>=4.9.3
+requests>=2.31.0
 selenium>=4.15.1
-botocore
-cryptography
+botocore>=1.32.4
+cryptography>=41.0.5
 tabulate
+defusedxml>=0.7.1
+certifi>=2023.11.17
+pyopenssl>=23.0.0

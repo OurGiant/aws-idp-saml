@@ -4,7 +4,7 @@ import binascii
 from tabulate import tabulate
 
 from selenium.webdriver.common.by import By
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 import constants
 

@@ -122,7 +122,7 @@ class Config:
         self.AccountMap = self.AWSRoot + "account-map.json"
 
     def get_saml_info(self):
-        idp_name = None
+        idp_name = "default"
         while idp_name not in constants.valid_idp:
             idp_name: str = input('What is the name of your provider? [' + ','.join(constants.valid_idp) + '] ').lower()
         log_stream.info('Information may be obtained from your IdP admin')

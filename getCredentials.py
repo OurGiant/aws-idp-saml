@@ -40,10 +40,6 @@ def main():
 
     if arg_store_password is False and config_store_password is False:
         password = Password.get_password()
-        if password == "revoke":
-            config.revoke_creds(aws_profile_name)
-            raise SystemExit(1)
-
         confirm_store: str = input('Would you like to store this password for future use? [Y/N]')
 
         if confirm_store == 'Y' or confirm_store == 'y':

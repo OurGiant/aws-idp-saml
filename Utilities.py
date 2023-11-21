@@ -140,6 +140,9 @@ def extract_tgz_archive(archive_file_name):
     try:
         log_stream.info('untar driver archive ' + archive_file_name)
         with tarfile.open(archive_file_name, 'r:gz') as tar_ref:
+            for member in tar_ref.getmembers():
+                if not os.path.abspath(os.path.join('drivers/', member.name)).startswith(os.path.abspath('drivers/')):
+                    raise ValueError(f"Unsafe tar extraction: {member.name}")
             tar_ref.extractall('drivers/')
         tar_ref.close()
     except tarfile.ReadError as e:
@@ -166,7 +169,10 @@ def check_if_container():
         log_stream.info('Run as container')
         try:
             with open('.is_container', 'w') as fh:
-                fh.write(open('/var/run/systemd/container').read())
+                with open('/var/run/systemd/container') as handle:
+                    sys_container = handle.readlines()
+                handle.close()
+                fh.write(sys_container)
             fh.close()
         except OSError:
             log_stream.fatal('Unable to write container flag file')

@@ -1,5 +1,6 @@
 # coding=utf-8
 import datetime
+import sys
 
 import botocore
 from boto3 import Session as BotoSession
@@ -45,7 +46,7 @@ class STS:
             log_stream.critical(error_message)
             # log_stream.info(str(saml_assertion))
             log_stream.critical(str(e))
-            exit(2)
+            raise SystemExit(2)
 
         return get_sts
 
