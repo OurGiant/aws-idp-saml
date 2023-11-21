@@ -17,6 +17,7 @@ log_stream = Logging('browser')
 
 os_info = OSInfo()
 operating_system = os_info.which_os()
+operating_system_type = os_info.which_os_type()
 
 selenium_timeout = constants.__timeout__
 script_execute_path = Utilities.get_script_exec_path()
@@ -92,18 +93,24 @@ def download_gecko_driver():
 
 
 def get_chrome_latest_version():
-    latest_version_url = "https://chromedriver.storage.googleapis.com/LATEST_RELEASE"
+    latest_version_url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
     request_response = requests.get(latest_version_url)
-    latest_chrome_driver_version = request_response.content.decode()
-    return latest_chrome_driver_version
+    chrome_driver_json = json.loads(request_response.content.decode())
+    latest_chrome_driver_version = chrome_driver_json['channels']['Stable']['version']
+    latest_chrome_driver_artifacts = chrome_driver_json['channels']['Stable']['downloads']['chromedriver']
+    return latest_chrome_driver_version, latest_chrome_driver_artifacts
 
 
 def download_chromedriver():
-    chrome_driver_base_url = 'https://chromedriver.storage.googleapis.com/'
-    version = get_chrome_latest_version()
-    chrome_driver_base_url = chrome_driver_base_url + version + '/'
-    chrome_file = constants.chrome_remote_files[operating_system]
-    chrome_driver_download_url = chrome_driver_base_url + chrome_file
+    # chrome_driver_base_url = 'https://chromedriver.storage.googleapis.com/'
+    version, artifacts = get_chrome_latest_version()
+    # chrome_driver_base_url = chrome_driver_base_url + version + '/'
+    # chrome_file = constants.chrome_remote_files[operating_system]
+    # chrome_driver_download_url = chrome_driver_base_url + chrome_file
+    for key in artifacts:
+        if operating_system_type in key['platform']:
+            chrome_driver_download_url = key['url']
+
     log_stream.info('Downloading driver from ' + chrome_driver_download_url)
     get_driver = requests.get(chrome_driver_download_url)
     driver_archive = 'drivers/' + constants.chrome_remote_files[operating_system]

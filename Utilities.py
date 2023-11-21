@@ -5,6 +5,7 @@ import sys
 import tarfile
 import zipfile
 from pathlib import Path
+import shutil
 
 import constants
 import Config
@@ -121,8 +122,13 @@ def extract_zip_archive(archive_file_name):
     try:
         log_stream.info('unzip driver archive ' + archive_file_name)
         with zipfile.ZipFile(archive_file_name, 'r') as zip_ref:
+            archive_root = zip_ref.namelist()[0].split('/')[0]
             zip_ref.extractall(path='drivers/')
         zip_ref.close()
+        if len(zip_ref.namelist()[0].split('/')) > 1:
+            for file in os.listdir('drivers/'+archive_root+'/'):
+                shutil.move('drivers/'+archive_root+'/'+file, 'drivers/')
+            shutil.rmtree('drivers/'+archive_root+'/')
     except zipfile.BadZipfile as e:
         log_stream.critical(str(e))
         return False
