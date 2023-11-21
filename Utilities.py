@@ -17,6 +17,7 @@ config = Config.Config()
 
 class Arguments:
     def __init__(self):
+        self.use_okta_fastpass: bool = False
         self.username = None
         self.use_idp = None
         self.text_menu: bool = False
@@ -51,6 +52,8 @@ class Arguments:
                                  help="display text menu of accounts. cannot be used with gui option")
         self.parser.add_argument("--debug", type=bool, default=False, nargs='?', const=True,
                                  help="show browser during SAML attempt")
+        self.parser.add_argument("--fastpass", type=bool, default=False, nargs='?', const=True,
+                                 help="Use Okta FastPass")
         if len(sys.argv) == 0:
             log_stream.fatal("Arguments required")
             self.parser.print_help()
@@ -108,13 +111,14 @@ class Arguments:
         else:
             self.browser_type = self.args.browser
 
+        self.use_okta_fastpass = self.args.fastpass
         self.use_debug = self.args.debug
         self.use_gui = self.args.gui
         self.store_password = self.args.storedpw
         self.aws_region = self.args.region
         self.text_menu = self.args.textmenu
 
-        return self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
+        return self.use_okta_fastpass, self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
             self.store_password, self.session_duration, self.aws_region, self.text_menu, self.use_idp, self.username
 
 

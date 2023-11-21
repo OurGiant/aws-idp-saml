@@ -32,15 +32,27 @@ def click_okta_mfa(wait):
         saml_response = "CouldNotEnterFormData"
         return saml_response
 
+def click_okta_fastpass(wait):
+    select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[3]/div[2]/div[2]/a'
+    try:
+        # Select the push notification option and click it
+        log_stream.info('Select Okta Fast Pass Notification')
+        send_push_notification = wait.until(ec.element_to_be_clickable((xpath_locator, select_push_notification)))
+        send_push_notification.click()
+    except se.ElementClickInterceptedException:
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
+
 
 class UseIdP:
 
     @staticmethod
-    def okta_sign_in(wait, driver, username, password, dsso_url):
+    def okta_sign_in(wait, driver, username, password, dsso_url, use_okta_fastpass):
         """
         Attempts to sign in to Okta using the given credentials.
 
         Args:
+            use_okta_fastpass (bool): indicates whether to Use Okta FastPass for MFA
             dsso_url: (str): The url indicating DSSO is in use.
             wait (WebDriverWait): The WebDriverWait instance to wait for elements.
             driver (WebDriver): The WebDriver instance used to navigate to Okta login page.
@@ -68,7 +80,10 @@ class UseIdP:
             try:
                 wait.until(ec.url_to_be(dsso_url))
                 log_stream.info('Follow DSSO Path')
-                saml_response = click_okta_mfa(wait)
+                if use_okta_fastpass is True:
+                    saml_response = click_okta_fastpass(wait)
+                else:
+                    saml_response = click_okta_mfa(wait)
                 use_dsso = True
                 if saml_response == "CouldNotEnterFormData":
                     return saml_response
@@ -104,7 +119,10 @@ class UseIdP:
                 saml_response = "CouldNotEnterFormData"
                 return saml_response
 
-            saml_response = click_okta_mfa(wait)
+            if use_okta_fastpass is True:
+                saml_response = click_okta_fastpass(wait)
+            else:
+                saml_response = click_okta_mfa(wait)
             if saml_response == "CouldNotEnterFormData":
                 return saml_response
 

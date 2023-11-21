@@ -19,7 +19,7 @@ config = Config.Config()
 
 
 def main():
-    use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
+    use_okta_fastpass, use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
         arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
@@ -55,7 +55,7 @@ def main():
                                         browser_type,
                                         saml_provider_name,
                                         idp_login_title,
-                                        role_arn, gui_name, dsso_url)
+                                        role_arn, gui_name, dsso_url,use_okta_fastpass)
 
     log_stream.info('SAML Response Size: ' + str(len(saml_response)))
     if len(saml_response) < 50:
