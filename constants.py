@@ -17,7 +17,7 @@ __mozilla_driver_url__ = 'https://api.github.com/repos/mozilla/geckodriver/relea
 __console_log_level__ = logging.INFO
 
 valid_browsers = ['chrome', 'firefox']
-valid_idp = ['okta', 'ping']
+valid_idp = ['okta']
 
 chrome_remote_files = {
     "windows": "chromedriver_win32.zip",

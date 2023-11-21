@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 mcr.microsoft.com/vscode/devcontainers/javascript-node:14-bullseye
+FROM --platform=linux/amd64 mcr.microsoft.com/vscode/devcontainers/javascript-node:16-bullseye
 
 RUN apt update && apt -y install curl python3 python3-venv chromium\
     && groupadd -g 1001 hventure \
