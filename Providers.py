@@ -1,14 +1,12 @@
 # coding=utf-8
 import uuid
 
+from selenium.common import exceptions as se
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common import exceptions as se
 
-import constants
-import Utilities
 from Logging import Logging
 
 log_stream = Logging('providers')

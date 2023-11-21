@@ -1,15 +1,11 @@
 # coding=utf-8
-import json
 
-import Browser
-import Utilities
+import AWS
+import Config
+import Login
 import Password
 import SAMLSelector
-import Login
-import Config
-import AWS
-
-import constants
+import Utilities
 from Logging import Logging
 
 log_stream = Logging('get_credentials')

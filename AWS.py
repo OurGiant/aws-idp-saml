@@ -1,13 +1,10 @@
 # coding=utf-8
 import datetime
-import sys
 
 import botocore
 from boto3 import Session as BotoSession
 from botocore import errorfactory as err
 
-import constants
-import Utilities
 from Logging import Logging
 
 log_stream = Logging('aws')
