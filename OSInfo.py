@@ -14,6 +14,7 @@ class OSInfo:
         for os_type in os_types:
             if os_type['sysname'] == sys.platform:
                 self.operating_system = os_type['name']
+                self.operating_sysname = os_type['sysname']
 
         self.environment_terminal = os.environ.get('TERM')
 
@@ -34,6 +35,10 @@ class OSInfo:
 
     def which_os(self):
         return self.operating_system
+
+    def which_os_type(self):
+        return self.operating_sysname
+
 
     def which_term(self):
         return self.environment_terminal
