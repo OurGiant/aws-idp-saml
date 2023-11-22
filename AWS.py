@@ -5,8 +5,6 @@ import botocore
 from boto3 import Session as BotoSession
 from botocore import errorfactory as err
 
-import constants
-import Utilities
 from Logging import Logging
 
 log_stream = Logging('aws')
@@ -45,7 +43,7 @@ class STS:
             log_stream.critical(error_message)
             # log_stream.info(str(saml_assertion))
             log_stream.critical(str(e))
-            exit(2)
+            raise SystemExit(2)
 
         return get_sts
 

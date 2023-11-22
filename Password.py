@@ -1,15 +1,13 @@
 # coding=utf-8
 # standard library imports
-import sys
-import os
-from datetime import datetime
 import getpass
+import os
+import sys
+from datetime import datetime
 
 # third-party imports
 from cryptography.fernet import Fernet, InvalidToken
 
-import constants
-import Utilities
 from Logging import Logging
 
 log_stream = Logging('password')

@@ -1,14 +1,11 @@
 # coding=utf-8
 import base64
 import binascii
+
+import defusedxml.ElementTree as ET
+from selenium.webdriver.common.by import By
 from tabulate import tabulate
 
-from selenium.webdriver.common.by import By
-import xml.etree.ElementTree as ET
-
-import constants
-
-import Utilities
 from Logging import Logging
 
 log_stream = Logging('saml_select')

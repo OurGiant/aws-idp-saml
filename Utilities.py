@@ -10,13 +10,16 @@ import shutil
 import constants
 import Config
 from Logging import Logging
+from OSInfo import OSInfo
+
 
 log_stream = Logging('utilities')
 config = Config.Config()
-
+os_info = OSInfo()
 
 class Arguments:
     def __init__(self):
+        self.use_okta_fastpass: bool = False
         self.username = None
         self.use_idp = None
         self.text_menu: bool = False
@@ -51,6 +54,8 @@ class Arguments:
                                  help="display text menu of accounts. cannot be used with gui option")
         self.parser.add_argument("--debug", type=bool, default=False, nargs='?', const=True,
                                  help="show browser during SAML attempt")
+        self.parser.add_argument("--fastpass", type=bool, default=False, nargs='?', const=True,
+                                 help="Use Okta FastPass")
         if len(sys.argv) == 0:
             log_stream.fatal("Arguments required")
             self.parser.print_help()
@@ -107,14 +112,18 @@ class Arguments:
             self.browser_type = get_browser_type()
         else:
             self.browser_type = self.args.browser
-
+        if os_info.which_os() == 'linux' and self.args.fastpass is True:
+            log_stream.fatal('OKta Fast Pass is not available on Linux https://help.okta.com/oie/en-us/content/topics/miscellaneous/okta-verify-platforms.htm')
+            raise SystemExit(1)
+        else:
+            self.use_okta_fastpass = self.args.fastpass
         self.use_debug = self.args.debug
         self.use_gui = self.args.gui
         self.store_password = self.args.storedpw
         self.aws_region = self.args.region
         self.text_menu = self.args.textmenu
 
-        return self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
+        return self.use_okta_fastpass, self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
             self.store_password, self.session_duration, self.aws_region, self.text_menu, self.use_idp, self.username
 
 
@@ -139,8 +148,16 @@ def extract_zip_archive(archive_file_name):
 def extract_tgz_archive(archive_file_name):
     try:
         log_stream.info('untar driver archive ' + archive_file_name)
+        do_extract: bool = True
         with tarfile.open(archive_file_name, 'r:gz') as tar_ref:
-            tar_ref.extractall('drivers/')
+            for member in tar_ref.getmembers():
+                if not os.path.abspath(os.path.join('drivers/', member.name)).startswith(os.path.abspath('drivers/')):
+                    do_extract = False
+                    raise ValueError(f"Unsafe tar extraction: {member.name}")
+            if do_extract:
+                tar_ref.extractall(path='drivers/', filter='data')
+            else:
+                return False
         tar_ref.close()
     except tarfile.ReadError as e:
         log_stream.critical('Error reading archive:' + str(e))
@@ -166,7 +183,10 @@ def check_if_container():
         log_stream.info('Run as container')
         try:
             with open('.is_container', 'w') as fh:
-                fh.write(open('/var/run/systemd/container').read())
+                with open('/var/run/systemd/container') as handle:
+                    sys_container = handle.readlines()
+                handle.close()
+                fh.write(sys_container)
             fh.close()
         except OSError:
             log_stream.fatal('Unable to write container flag file')

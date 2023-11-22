@@ -1,15 +1,11 @@
 # coding=utf-8
-import json
 
-import Browser
-import Utilities
+import AWS
+import Config
+import Login
 import Password
 import SAMLSelector
-import Login
-import Config
-import AWS
-
-import constants
+import Utilities
 from Logging import Logging
 
 log_stream = Logging('get_credentials')
@@ -19,7 +15,7 @@ config = Config.Config()
 
 
 def main():
-    use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
+    use_okta_fastpass, use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
         arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
@@ -40,10 +36,6 @@ def main():
 
     if arg_store_password is False and config_store_password is False:
         password = Password.get_password()
-        if password == "revoke":
-            config.revoke_creds(aws_profile_name)
-            raise SystemExit(1)
-
         confirm_store: str = input('Would you like to store this password for future use? [Y/N]')
 
         if confirm_store == 'Y' or confirm_store == 'y':
@@ -59,7 +51,7 @@ def main():
                                         browser_type,
                                         saml_provider_name,
                                         idp_login_title,
-                                        role_arn, gui_name, dsso_url)
+                                        role_arn, gui_name, dsso_url,use_okta_fastpass)
 
     log_stream.info('SAML Response Size: ' + str(len(saml_response)))
     if len(saml_response) < 50:

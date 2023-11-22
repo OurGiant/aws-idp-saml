@@ -1,6 +1,6 @@
 import logging
 
-__version__ = '1.0.9.1'
+__version__ = '1.0.15'
 __timeout__ = 45
 __snap_install_dir__ = '/snap/firefox/current/usr/lib/firefox'
 __mozilla_driver_url__ = 'https://api.github.com/repos/mozilla/geckodriver/releases'
@@ -16,10 +16,8 @@ __mozilla_driver_url__ = 'https://api.github.com/repos/mozilla/geckodriver/relea
 ##
 __console_log_level__ = logging.INFO
 
-import logging
-
 valid_browsers = ['chrome', 'firefox']
-valid_idp = ['okta', 'ping']
+valid_idp = ['okta']
 
 chrome_remote_files = {
     "windows": "chromedriver_win32.zip",
