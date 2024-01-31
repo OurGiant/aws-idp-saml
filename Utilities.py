@@ -10,10 +10,12 @@ import shutil
 import constants
 import Config
 from Logging import Logging
+from OSInfo import OSInfo
+
 
 log_stream = Logging('utilities')
 config = Config.Config()
-
+os_info = OSInfo()
 
 class Arguments:
     def __init__(self):
@@ -110,8 +112,11 @@ class Arguments:
             self.browser_type = get_browser_type()
         else:
             self.browser_type = self.args.browser
-
-        self.use_okta_fastpass = self.args.fastpass
+        if os_info.which_os() == 'linux' and self.args.fastpass is True:
+            log_stream.fatal('OKta Fast Pass is not available on Linux https://help.okta.com/oie/en-us/content/topics/miscellaneous/okta-verify-platforms.htm')
+            raise SystemExit(1)
+        else:
+            self.use_okta_fastpass = self.args.fastpass
         self.use_debug = self.args.debug
         self.use_gui = self.args.gui
         self.store_password = self.args.storedpw
