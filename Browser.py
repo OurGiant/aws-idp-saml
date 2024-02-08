@@ -175,10 +175,13 @@ def verify_drivers(user_browser):
     return driver_executable
 
 
-def browser_debugging_options(options):
-    options.add_argument("--headless=new")
+def browser_debugging_options(options, user_browser):
     options.add_argument("--no-sandbox")
-    options.set_capability("browserVersion", "120")
+    if user_browser == "chrome":
+        options.set_capability("browserVersion", "120")
+        options.add_argument("--headless=new")
+    elif user_browser == "firefox":
+        options.add_argument("--headless")
     # TODO working only for Firefox
     # options.set_preference("webdriver.log.level", "OFF")
     return options
@@ -208,8 +211,9 @@ def setup_browser(user_browser, use_debug):
         from selenium.webdriver.chrome.service import Service as FirefoxService
 
         browser_options = FirefoxOptions()
+        browser_options.log.level = "trace"
         if use_debug is False:
-            browser_options = browser_debugging_options(browser_options)
+            browser_options = browser_debugging_options(browser_options,user_browser)
         if os_info.which_os() == 'linux':
             driver_executable, binary_location = gecko_from_snap()
             if binary_location is not None:
@@ -235,7 +239,7 @@ def setup_browser(user_browser, use_debug):
         from selenium.webdriver.chrome.service import Service as ChromeService
         browser_options = ChromeOptions()
         if use_debug is False:
-            browser_options = browser_debugging_options(browser_options)
+            browser_options = browser_debugging_options(browser_options,user_browser)
         browser_options.add_argument("--disable-dev-shm-usage")
         driver_executable = verify_drivers('chrome')
         chrome_service = ChromeService(executable_path=driver_executable)
