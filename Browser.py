@@ -149,7 +149,7 @@ def verify_drivers(user_browser):
         log_stream.critical('Missing drivers directory')
         log_stream.info('Creating drivers directory')
         try:
-            os.mkdirs(drivers)
+            os.makedirs(drivers,exist_ok=True)
         except OSError as e:
             log_stream.critical('Unable to create drivers directory')
             log_stream.critical(str(e))

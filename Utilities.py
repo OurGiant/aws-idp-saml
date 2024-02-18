@@ -155,7 +155,9 @@ def extract_tgz_archive(archive_file_name):
                     do_extract = False
                     raise ValueError(f"Unsafe tar extraction: {member.name}")
             if do_extract:
-                tar_ref.extractall(path='drivers/', filter='data')
+                # Safe tar only available after 3.12
+                # tar_ref.extractall(path='drivers/', filter='data')
+                tar_ref.extractall(path='drivers/')
             else:
                 return False
         tar_ref.close()
