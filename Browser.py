@@ -149,7 +149,7 @@ def verify_drivers(user_browser):
         log_stream.critical('Missing drivers directory')
         log_stream.info('Creating drivers directory')
         try:
-            os.makedirs(drivers,exist_ok=True)
+            os.makedirs(drivers, exist_ok=True)
         except OSError as e:
             log_stream.critical('Unable to create drivers directory')
             log_stream.critical(str(e))
@@ -213,7 +213,7 @@ def setup_browser(user_browser, use_debug):
         browser_options = FirefoxOptions()
         browser_options.log.level = "trace"
         if use_debug is False:
-            browser_options = browser_debugging_options(browser_options,user_browser)
+            browser_options = browser_debugging_options(browser_options, user_browser)
         if os_info.which_os() == 'linux':
             driver_executable, binary_location = gecko_from_snap()
             if binary_location is not None:
@@ -239,7 +239,7 @@ def setup_browser(user_browser, use_debug):
         from selenium.webdriver.chrome.service import Service as ChromeService
         browser_options = ChromeOptions()
         if use_debug is False:
-            browser_options = browser_debugging_options(browser_options,user_browser)
+            browser_options = browser_debugging_options(browser_options, user_browser)
         browser_options.add_argument("--disable-dev-shm-usage")
         driver_executable = verify_drivers('chrome')
         chrome_service = ChromeService(executable_path=driver_executable)
