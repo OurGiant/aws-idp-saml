@@ -211,7 +211,7 @@ def get_browser_type():
 
 
 def get_session_duration():
-    *nonsense, session_duration, browser = config.read_global_settings()
+    *nonsense, session_duration, saml_provider, browser = config.read_global_settings()
     if session_duration is None:
         session_duration = 0
     return session_duration
