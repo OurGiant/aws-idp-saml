@@ -3,27 +3,28 @@
 Log into your IdP and retrieve a SAML assertion for AWS. Use SAML assertion to assume an AWS role for use with SDK and CLI.
 
 ## Table of Contents
+
 - [Getting Started](#getting-started)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Installing](#installing)
-- - [Configuration](#configuration)
-- - - [Lazy Configuration](#lazy-configuration)
-- - - [Quick Start Configuration](#quick-start-configuration)
-- - [Virtual Environment](#virtual-environment)
-- - [Dependencies](#dependancies)
-- - - [Using Poetry](#using-poetry--preferred-)
-- - - [Using pip](#using-pip)
-- - [MacOS Users Special Instructions](#macos-users-special-instructions)
+  - [Configuration](#configuration)
+    - [Lazy Configuration](#lazy-configuration)
+    - [Quick Start Configuration](#quick-start-configuration)
+  - [Virtual Environment](#virtual-environment)
+  - [Dependencies](#dependancies)
+    - [Using Poetry](#using-poetry--preferred-)
+    - [Using pip](#using-pip)
+  - [MacOS Users Special Instructions](#macos-users-special-instructions)
 - [Drivers](#drivers)
 - [Usage](#usage)
-- - [Configuration file](#configuration-file)
-- - - [Providers Section](#providers-section)
-- - - [Global Section](#global-section)
-- - [Full Configuration mode](#full-configuration-mode)
-- - [Text Menu mode](#text-menu-mode)
-- - [Docker](#docker)
-- - [Additional Indentity Providers](#additional-indentity-providers)
+  - [Configuration file](#configuration-file)
+    - [Providers Section](#providers-section)
+    - [Global Section](#global-section)
+  - [Full Configuration mode](#full-configuration-mode)
+  - [Text Menu mode](#text-menu-mode)
+  - [Docker](#docker)
+  - [Additional Indentity Providers](#additional-indentity-providers)
 - [Installing Poetry](#installing-poetry)
 - [Troubleshooting](#troubleshooting)
 - [Known Issues](#known-issues)
@@ -53,45 +54,53 @@ python3 getCredentials.py --textmenu
 
 ## Installing
 
-### Configuration 
+### Configuration
 
 See [Configuration File](#configuration-file) for details
 
 #### Lazy Configuration
 
-If you provide no configuration files at start up and use only the --textmenu flag at start up the utility will attempt to build and store configurations for you in the appropriate files. 
+If you provide no configuration files at start up and use only the --textmenu flag at start up the utility will attempt to build and store configurations for you in the appropriate files.
 You can then reference these configurations in future runs. The more you use the utility for different accounts, the more complete your configurations will become.
 
 Files built:
+
 -  ***~/.aws/samlsts***
 -  ***~/.aws/account-map.json***
 
 If you want to configure the files head of the first run, follow the instructions found in this README
 
-
 #### Quick Start Configuration
+
 Linux
+
 ```bash
 cp samlsts.demo ~/.aws/samlsts
 chmod 700 ~/.aws/
 ```
 
 Windows
+
 ```powershell
 Copy-Item -Path .\samlsts.demo -Destination $HOME\.aws\samlsts
 ```
+
 These commands may need to be run from an Administrator shell, if the Set-Acl presents a permissions error.
 If you do not already have the ***~/.aws*** directory you can create it with ```aws configure```, Mock values can be used to create a [default] profile.
 
 ### Virtual Environment
+
 from the aws-idp-saml root:
-linux: 
+
+linux:
+
 ```bash
 python -m venv venv
 source venv/bin/activate
 ```
 
 Windows:
+
 ```powershell
 python -m venv venv
 powershell Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -102,8 +111,8 @@ venv\Scripts\activate
 
 There are two methods for installing dependencies, using pip to install the dependancies listed in requirements.txt, or using ***poetry*** to manage the python packages for the application
 
-
 ##### Using Poetry (preferred)
+
 Install Poetry (see [Installing Poetry](#installing-poetry) )
 Start your virtual environment prior to the poetry install (see [Virtual Environment](#virtual-environment))
 
@@ -113,11 +122,12 @@ Start your virtual environment prior to the poetry install (see [Virtual Environ
 ```
 
 ##### Using pip
+
 from the application root run:
+
 ```bash
   pip3 install -r requirements.txt
 ```
-
 
 ### MacOS Users Special Instructions
 
@@ -148,10 +158,10 @@ The Chrome driver will attempt to update itself if the driver version is out of 
 You may run the utility without first having an ***~/.aws/samlsts*** configuration file. The utility will attempt to create one for you by asking the following questions:
 
 - What is the name of your provider? [PING,OKTA]
-- What is the application login URL for your IdP? 
-- What is the HTML title on the login page? 
+- What is the application login URL for your IdP?
+- What is the HTML title on the login page?
 
-With these answers it will create the file and add this provider section. 
+With these answers it will create the file and add this provider section.
 
 You may also copy the ***samlsts.demo*** file from this repository into your ***~/.aws*** directory and rename it **samlsts**.
 
@@ -159,17 +169,18 @@ If you do not already have the ***~/.aws*** directory you can create it with ```
 
 You do not need to define a [global](#global-section) section or [profile](#full-configuration-mode) sections. You may use the utility with --textmenu, --username, --idp, and --browser
 
-
 #### Providers Section
+
 The ***samlsts** configuration file will need to be configured with a minimum of one Identity Provider section. The name of the section must contain the prefix 'Fed' and the name of the IDP in uppercase letters.
 
 ***[Fed-PING]***
 
 ***[Fed-OKTA]***
 
-The provider block must also contain the following parameters
+The provider block must also contain the following parameters:
+
 - loginpage - This is the page provided by your IdP administrator which allows you direct access to the AWS application in your IdP
-- loginTitle - This is the HTML title of the login page. 
+- loginTitle - This is the HTML title of the login page.
 
 ```ini
 [Fed-PING]
@@ -180,7 +191,8 @@ loginTitle=Sign On
 This utility supports PING and OKTA as Identity Providers. Additional identity providers can be configured, see [Additional Identity Providers](#additional-indentity-providers) for details.
 
 #### Global Section
-A 'global' parameters block can be added to the configuration file to store values otherwise provided on the command line. Settings specified in this section will be overriden by values in the profile blocks, or on the command line. 
+
+A 'global' parameters block can be added to the configuration file to store values otherwise provided on the command line. Settings specified in this section will be overriden by values in the profile blocks, or on the command line.
 
 ```ini
 [global]
@@ -190,7 +202,6 @@ savedPassword=true
 username=this.user
 awsRegion=us-east-1
 ```
-
 
 The utility can be run in either ***full-configuration*** mode using the **samlsts** configuration file in ~/.aws/ (see [Full Configuration](#full-configuration-mode) or using a text based menu (see [Text Based Menu](#text-menu-mode)) to specify which account to use.
 
@@ -234,8 +245,7 @@ Other options:
 
 ```
 
-See 
-
+See
 
 ### All runtime options
 
@@ -256,7 +266,7 @@ See
 
 ### Browser Driver Information
 
-This utility makes use of [Selinium](#prerequisites) to run a headless browser session for login. 
+This utility makes use of [Selenium](#prerequisites) to run a headless browser session for login.
 
 The along with adding the aws credentials in the ***~/.aws/credentials*** file, the [gui option](#all-runtime-options) will open a browser with the AWS Console for the profile name selected. This shouldn't be used for long-term operations as the geckodriver browser is not known for speed. This is a quick way to gt a console session while still getting CLI credentials.
 
@@ -274,12 +284,12 @@ a function alias can be added to .bash_aliases that allows the user to quickrun 
     profilename=$1
     used_stored_password=$2
     use_debug=$3
-    if [ $use_debug ] 
+    if [ $use_debug ]
     then
-      echo "Use stored password and debug";  /usr/bin/python3 ${saml_home}/getCredentials.py --duration 14400 --browser firefox --profilename ${profilename} --storedpw --region us-east-1 --debug 
+      echo "Use stored password and debug";  /usr/bin/python3 ${saml_home}/getCredentials.py --duration 14400 --browser firefox --profilename ${profilename} --storedpw --region us-east-1 --debug
     elif [ $used_stored_password ]
     then
-      echo "Use stored password";  /usr/bin/python3 ${saml_home}/getCredentials.py --duration 14400 --browser firefox --profilename ${profilename} --storedpw --region us-east-1 
+      echo "Use stored password";  /usr/bin/python3 ${saml_home}/getCredentials.py --duration 14400 --browser firefox --profilename ${profilename} --storedpw --region us-east-1
     else
       /usr/bin/python3  ${saml_home}/getCredentials.py --profilename ${profilename} --duration 14400 --browser firefox --region us-east-1
     fi
@@ -297,22 +307,25 @@ getsaml my-profile-name yes
 Powershell 7 only instructions
 
 If you do not already have a profile file for your Windows account create one
+
 ```powershell
 New-Item -ItemType File -Path $PROFILE -Force
 ```
 
 Open the file in the editor of your choice
+
 ```powershell
 notepad $PROFILE
 ```
 
 Add the alias and save the file
+
 ```powershell
 function getsaml {
     Push-Location .
-	Set-Location C:\Users\ryanm\Projects\aws-idp-saml
-	Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-	& "venv\Scripts\activate"
+    Set-Location C:\Users\ryanm\Projects\aws-idp-saml
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    & "venv\Scripts\activate"
     python .\getCredentials.py --textmenu --idp ping --browser chrome
     deactivate
     Pop-Location
@@ -320,11 +333,11 @@ function getsaml {
 
 function getsaml($profilename) {
     Push-Location .
-	Set-Location C:\Users\ryanm\Projects\aws-idp-saml
-	Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-	& "venv\Scripts\activate"
+    Set-Location C:\Users\ryanm\Projects\aws-idp-saml
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    & "venv\Scripts\activate"
     python getCredentials.py --profilename companyA-admin --browser chrome --storedpw
-	deactivate
+    deactivate
     Pop-Location
 }
 ```
@@ -345,8 +358,6 @@ Configuration parameters are:
 - **guiName** AWS account alias as displayed in the SAML response
 - **sessionDuration** how long to persist the credentials once the role is assumed
 
-
-
 ***example:***
 
 ```bash
@@ -362,12 +373,12 @@ sessionDuration=14400
 
 ## Text Menu Mode
 
-In text menu mode, you presented with a list of accounts from which to choose a role to assume. 
+In text menu mode, you presented with a list of accounts from which to choose a role to assume.
 By default, the list will include the selector ID, the Account Number and the Role Name.
 
 Choose which role you want to assume and type it into the prompt.
 
-```
+```text
 ╒══════╤══════════════════╤═══════════════════════╕
 │   Id │   Account Number │ Role Name             │
 ╞══════╪══════════════════╪═══════════════════════╡
@@ -387,7 +398,7 @@ Choose which role you want to assume and type it into the prompt.
 ├──────┼──────────────────┼───────────────────────┤
 │   13 │     160016001600 │ Operations            │
 ╘══════╧══════════════════╧═══════════════════════╛
-Enter the Id of the role to assume: 
+Enter the Id of the role to assume:
 
 ```
 
@@ -396,22 +407,22 @@ This file will also be built for you by running the application. The more accoun
 
 ```json
 [
-	{
-		"name": "productline-db",
-		"number": "123456123456"
-	}, {
-		"name": "productline-app",
-		"number": "123412341234"
-	}, {
-		"name": "company-coderepo",
-		"number": "180055512120"
-	}
+    {
+        "name": "productline-db",
+        "number": "123456123456"
+    }, {
+        "name": "productline-app",
+        "number": "123412341234"
+    }, {
+        "name": "company-coderepo",
+        "number": "180055512120"
+    }
 ]
 ```
 
-This will display the account aliases in the text menu list, rather than numbers. If you have a large number of accounts, this will make selecting the correct one easier. 
+This will display the account aliases in the text menu list, rather than numbers. If you have a large number of accounts, this will make selecting the correct one easier.
 
-```
+```text
 ╒══════╤══════════════════╤═══════════════════════╕
 │   Id │   Account Name   │ Role Name             │
 ╞══════╪══════════════════╪═══════════════════════╡
@@ -431,7 +442,7 @@ This will display the account aliases in the text menu list, rather than numbers
 ├──────┼──────────────────┼───────────────────────┤
 │   13 | productB-monitor │ Operations            │
 ╘══════╧══════════════════╧═══════════════════════╛
-Enter the Id of the role to assume: 
+Enter the Id of the role to assume:
 
 ```
 
@@ -441,12 +452,11 @@ This utility should be considered "container friendly". There are example docker
 
 - ubuntu container must use firefox, installed as a debian package
 - most other distributions will install Chromium and reference the browser as Chrome
-- running the utility AS a docker container with docker run is possible, allthough in order to do so you would need to mount your ~/.aws directory at runtime and this could cause UID/permissions issues. This was tested and determined not to be a high priority use case.   
-
+- running the utility AS a docker container with docker run is possible, although in order to do so you would need to mount your ~/.aws directory at runtime and this could cause UID/permissions issues. This was tested and determined not to be a high priority use case.
 
 ## Additional Indentity Providers
 
-The [original version](https://github.com/OurGiant/aws-ping-saml) of this utility was written to allow users to obtain STS credentials where there was a fixed IdP, PING. A need to accomodate an additional IdP was found and that lead to the development changes which resulted in this iteration of the utilitiy.
+The [original version](https://github.com/OurGiant/aws-ping-saml) of this utility was written to allow users to obtain STS credentials where there was a fixed IdP, PING. A need to accommodate an additional IdP was found and that lead to the development changes which resulted in this iteration of the utility.
 
 There are many Identity Providers on the market:
 
@@ -461,9 +471,9 @@ There are many Identity Providers on the market:
 - RSA SecurID Access
 - Centrify
 
-Each of these providers has a specific way to log in, which triggers the AWS SAML page. Without access to these providers, 
-I am unable to offer development support. If you would like to use this utility for a provider not already supported, 
-you can add your provider's steps in the Providers.UseIdP() class. 
+Each of these providers has a specific way to log in, which triggers the AWS SAML page. Without access to these providers,
+I am unable to offer development support. If you would like to use this utility for a provider not already supported,
+you can add your provider's steps in the Providers.UseIdP() class.
 I would ask that if possible, create a feature branch for your additions, so it can be integrated with the main branch.
 
 ## Installing Poetry
@@ -471,7 +481,7 @@ I would ask that if possible, create a feature branch for your additions, so it 
 Documentation:  [https://python-poetry.org/docs/](https://python-poetry.org/docs/)
 Follow the installation instructions for your operating system found in the documentation
 
-Either add the poetry bin location to your path as provided in the installation output. 
+Either add the poetry bin location to your path as provided in the installation output.
 
 In Windows the executable is $Env:APPDATA\Python\Scripts\poetry.exe
 In Linux the executable is ~/.local/bin/poetry
@@ -483,6 +493,7 @@ If you have issues please create an issue on the project for review. [https://gi
 ## Known Issues
 
 ## To Do
+
 - check and pull the latest chrome driver
 - better table layout for textmenu
 
@@ -513,7 +524,7 @@ This project is licensed under the [Apache License 2.0](https://www.apache.org/l
 ***testing and contributions made by:***
 
 - Craig Dobson
-  - Tim Dady
-  - Mary James
-  - Basheer Shaik
-  - Luis Langa
+- Tim Dady
+- Mary James
+- Basheer Shaik
+- Luis Langa
