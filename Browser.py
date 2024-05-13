@@ -117,6 +117,11 @@ def download_chromedriver():
         local_file = 'drivers/' + constants.chrome_local_file[operating_system]
         try:
             os.remove(local_file)
+            if operating_system == 'windows':
+                try:
+                    os.remove('drivers\LICENSE.chromedriver')
+                except FileNotFoundError:
+                    pass
         except FileNotFoundError:
             pass
         return Utilities.extract_zip_archive(driver_archive)
