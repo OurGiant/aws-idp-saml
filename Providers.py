@@ -7,35 +7,39 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 
+import constants
 from Logging import Logging
 
 log_stream = Logging('providers')
 
 saml_page_title = "Amazon Web Services Sign-In"
+
 xpath_locator = By.XPATH
 class_name_locator = By.CLASS_NAME
 id_locator = By.ID
 link_text_locator = By.LINK_TEXT
 name_locator = By.NAME
+css_locator = By.CSS_SELECTOR
 
 
 def click_okta_mfa(wait):
-    select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[2]/div[2]/div[2]/a'
     try:
         # Select the push notification option and click it
         log_stream.info('Select Push Notification')
-        send_push_notification = wait.until(ec.element_to_be_clickable((xpath_locator, select_push_notification)))
+        send_push_notification = wait.until(ec.element_to_be_clickable(
+            (css_locator, constants.security_method_labels['push_notify'])))
         send_push_notification.click()
     except se.ElementClickInterceptedException:
         saml_response = "CouldNotEnterFormData"
         return saml_response
 
+
 def click_okta_fastpass(wait):
-    select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[3]/div[2]/div[2]/a'
     try:
         # Select the push notification option and click it
         log_stream.info('Select Okta Fast Pass Notification')
-        send_push_notification = wait.until(ec.element_to_be_clickable((xpath_locator, select_push_notification)))
+        send_push_notification = wait.until(ec.element_to_be_clickable(
+            (css_locator, constants.security_method_labels['fast_pass'])))
         send_push_notification.click()
     except se.ElementClickInterceptedException:
         saml_response = "CouldNotEnterFormData"
@@ -72,7 +76,6 @@ class UseIdP:
 
         username_field = "identifier"
         password_field = "password-with-toggle"
-
 
         if not use_dsso:
             username_next_button = wait.until(ec.element_to_be_clickable((class_name_locator, username_next_button)))
