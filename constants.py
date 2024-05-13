@@ -50,8 +50,8 @@ gecko_local_file = {
 }
 
 security_method_labels = {
-    "enter_code": "[aria-label='Select Okta FastPass.']",
+    "fast_pass": "[aria-label='Select Okta FastPass.']",
     "push_notify": "[aria-label='Select to get a push notification to the Okta Verify app.']",
-    "fast_pass": "[aria-label='Select to enter a code from the Okta Verify app.']"
+    "enter_code": "[aria-label='Select to enter a code from the Okta Verify app.']"
 }
 
