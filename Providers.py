@@ -23,15 +23,22 @@ css_locator = By.CSS_SELECTOR
 
 
 def click_okta_mfa(wait, driver):
-    try:
-        # Select the push notification option and click it
-        log_stream.info('Select Push Notification')
-        send_push_notification = wait.until(ec.element_to_be_clickable(
-            (class_name_locator, "button-primary")))
-        send_push_notification.click()
-    except se.ElementClickInterceptedException:
-        saml_response = "CouldNotEnterFormData"
-        return saml_response
+    send_push_button = driver.find_element(By.CLASS_NAME,"button-primary")
+    if "Push notification sent" in send_push_button.text:
+        log_stream.info('Push Notification Sent')
+        pass
+    else:
+        try:
+            # Select the push notification option and click it
+            send_push_notification = wait.until(ec.element_to_be_clickable(
+                (class_name_locator, "button-primary")))
+            log_stream.info('Select Push Notification')
+            send_push_notification.click()
+        except se.TimeoutException:
+            pass
+        except se.ElementClickInterceptedException:
+            saml_response = "CouldNotEnterFormData"
+            return saml_response
 
 
 def click_okta_fastpass(wait):
