@@ -226,6 +226,8 @@ def setup_browser(user_browser, use_debug):
             else:
                 driver_executable = verify_drivers('firefox')
         else:
+            firefox_binary_path = constants.firefox_binary_location[operating_system]
+            browser_options.binary_location = firefox_binary_path
             driver_executable = verify_drivers('firefox')
         firefox_service = FirefoxService(executable_path=driver_executable)
         try:
