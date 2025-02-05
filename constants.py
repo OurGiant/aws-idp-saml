@@ -21,6 +21,7 @@ valid_idp = ['okta']
 
 firefox_binary_location = {
     "windows": "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
+    "macos": "/Applications/Firefox.app/Contents/MacOS/firefox",
 }
 
 
