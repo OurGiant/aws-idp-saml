@@ -8,3 +8,4 @@ tabulate
 defusedxml>=0.7.1
 certifi>=2023.11.17
 pyopenssl>=23.0.0
+urllib3>=2.5.0 # not directly required, pinned by Snyk to avoid a vulnerability
