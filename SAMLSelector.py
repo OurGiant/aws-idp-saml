@@ -19,8 +19,14 @@ def select_role_from_saml_page(driver, gui_name, iam_role, design):
         while x < len(driver.find_elements(By.CLASS_NAME, "saml-account-name")):
             saml_account = str(driver.find_elements(By.CLASS_NAME, "saml-account-name")[x].text)
             saml_account = saml_account.replace('(', '').replace(')', '').replace(':', '')
-            saml_account_name = saml_account.split(' ')[1]
-            saml_account_token = saml_account.split(' ')[2]
+            try:
+                saml_account_name = saml_account.split(' ')[1]
+            except IndexError:
+                saml_account_name = 'No-Alias-Configured'
+            try:
+                saml_account_token = saml_account.split(' ')[2]
+            except IndexError:
+                saml_account_token = 'No-Token-Configured'
             saml_accounts.update({saml_account_name: saml_account_token})
             x += 1
 
