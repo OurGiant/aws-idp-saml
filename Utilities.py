@@ -56,6 +56,8 @@ class Arguments:
                                  help="show browser during SAML attempt")
         self.parser.add_argument("--fastpass", type=bool, default=False, nargs='?', const=True,
                                  help="Use Okta FastPass")
+        self.parser.add_argument("--encrypted", type=bool, default=False, nargs='?', const=True,
+                                 help="Generate encrypted credentials string")
         if len(sys.argv) == 0:
             log_stream.fatal("Arguments required")
             self.parser.print_help()
@@ -124,7 +126,7 @@ class Arguments:
         self.text_menu = self.args.textmenu
 
         return self.use_okta_fastpass, self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
-            self.store_password, self.session_duration, self.aws_region, self.text_menu, self.use_idp, self.username
+            self.store_password, self.session_duration, self.aws_region, self.text_menu, self.use_idp, self.username, self.args.encrypted
 
 
 def extract_zip_archive(archive_file_name):
@@ -215,3 +217,59 @@ def get_session_duration():
     if session_duration is None:
         session_duration = 0
     return session_duration
+
+def encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token):
+    from cryptography.hazmat.primitives import serialization, hashes
+    from cryptography.hazmat.primitives.asymmetric import rsa, padding
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    import os
+    
+    try:
+        with open('config/public_key.pem', 'rb') as f:
+            public_key = serialization.load_pem_public_key(f.read())
+    except FileNotFoundError:
+        log_stream.fatal('No public key found, please run keygen.py to generate a public/private key pair')
+        return "Encryption Error"
+    
+    if not isinstance(public_key, rsa.RSAPublicKey):
+        log_stream.fatal('Loaded public key is not an RSA public key. Encryption is only supported with RSA keys.')
+        return "Encryption Error"
+    
+    credentials_string = aws_access_id + '|' + aws_secret_key + '|' + aws_session_token
+    
+    try:
+        # Generate a random AES key (256-bit)
+        aes_key = os.urandom(32)
+        
+        # Generate a random IV for AES
+        iv = os.urandom(16)
+        
+        # Encrypt the credentials with AES-CBC
+        cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv))
+        encryptor = cipher.encryptor()
+        
+        # Apply PKCS7 padding
+        def pkcs7_pad(data, block_size):
+            pad_length = block_size - (len(data) % block_size)
+            return data + bytes([pad_length] * pad_length)
+        
+        padded_credentials = pkcs7_pad(credentials_string.encode(), 16)
+        encrypted_credentials = encryptor.update(padded_credentials) + encryptor.finalize()
+        
+        # Encrypt the AES key with RSA
+        encrypted_aes_key = public_key.encrypt(
+            aes_key,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        
+        # Combine: encrypted_aes_key:iv:encrypted_credentials (all hex encoded)
+        result = encrypted_aes_key.hex() + ':' + iv.hex() + ':' + encrypted_credentials.hex()
+        return result
+        
+    except Exception as e:
+        log_stream.fatal('Error encrypting credentials: ' + str(e))
+        return "Encryption Error"

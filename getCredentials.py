@@ -16,7 +16,7 @@ config = Config.Config()
 
 def main():
     use_okta_fastpass, use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
-        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
+        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username, arg_encrypted = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
         saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, account_number, \
@@ -97,6 +97,10 @@ def main():
         sts_expires_local_time: str = sts_expiration.strftime("%c")
         log_stream.info('Token issued for ' + aws_user_id + ' in account ' + account_name)
         log_stream.info('Token will expire at ' + sts_expires_local_time)
+
+        if arg_encrypted:
+            encrypted_string = Utilities.encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token)
+            print('\nEncrypted Credentials String:\n' + encrypted_string + '\n')
 
         if config.check_global_in_saml_config():
             configure_globals: str = input('Save the settings from this section for all sessions? [Y/N]')
