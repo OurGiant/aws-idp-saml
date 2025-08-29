@@ -7,3 +7,4 @@ drivers/*
 /venv/
 /poetry.lock
 /docker/Dockerfile-amzlnx2
+.vscode/*
