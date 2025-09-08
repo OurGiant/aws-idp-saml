@@ -47,7 +47,7 @@ def get_saml_response(driver):
 
 
 def browser_login(username, password, first_page, use_debug, use_gui, browser, saml_provider_name,
-                  idp_login_title, iam_role, gui_name, dsso_url,use_okta_fastpass):
+                  idp_login_title, iam_role, gui_name, dsso_url,use_okta_fastpass) -> str:
 
     completed_login: bool = False
 
@@ -63,7 +63,7 @@ def browser_login(username, password, first_page, use_debug, use_gui, browser, s
             wait.until(ec.title_contains("Sign"))
         except se.TimeoutException:
             saml_response = "CouldNameLoadSignInPage"
-            return saml_response
+            return str(saml_response)
 
         log_stream.info('Sign In Page Title is ' + driver.title)
 
@@ -93,4 +93,4 @@ def browser_login(username, password, first_page, use_debug, use_gui, browser, s
     else:
         saml_response = "CouldNotLoadWebDriver"
 
-    return saml_response
+    return str(saml_response)

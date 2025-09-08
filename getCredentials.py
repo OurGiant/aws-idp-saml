@@ -7,6 +7,8 @@ import Password
 import SAMLSelector
 import Utilities
 from Logging import Logging
+from typing  import Any, Dict, List
+
 
 log_stream = Logging('get_credentials')
 
@@ -16,7 +18,7 @@ config = Config.Config()
 
 def main():
     use_okta_fastpass, use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
-        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username = args.parse_args()
+        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username, arg_encrypted = args.parse_args()
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
         saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, account_number, \
@@ -71,8 +73,9 @@ def main():
         try:
             account_name = selected_role['account_name']
         except KeyError:
-            account_name = selected_role['account_number']
-        account_number = selected_role['account_number']
+            account_name: str = selected_role['account_number']
+        
+        account_number: str = selected_role['account_number']
     else:
         profile_name = aws_profile_name
         used_profile_name_param = True
@@ -95,8 +98,12 @@ def main():
         aws_user_id = AWS.STS.get_aws_caller_id(clean_profile_name)
 
         sts_expires_local_time: str = sts_expiration.strftime("%c")
-        log_stream.info('Token issued for ' + aws_user_id + ' in account ' + account_name)
+        log_stream.info('Token issued for ' + str(aws_user_id) + ' in account ' + str(account_name))
         log_stream.info('Token will expire at ' + sts_expires_local_time)
+
+        if arg_encrypted:
+            encrypted_string = Utilities.encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token)
+            print('\nEncrypted Credentials String:\n' + encrypted_string + '\n')
 
         if config.check_global_in_saml_config():
             configure_globals: str = input('Save the settings from this section for all sessions? [Y/N]')

@@ -7,6 +7,7 @@ from pathlib import Path
 import AWS
 import constants
 from Logging import Logging
+from typing import Dict, Tuple
 
 log_stream = Logging('config')
 #additional line
@@ -50,7 +51,7 @@ def validate_aws_cred_format(aws_access_id, aws_secret_key, aws_session_token):
         return True
 
 
-def get_aws_variables(conf_region, conf_duration, arg_aws_region, arg_session_duration):
+def get_aws_variables(conf_region, conf_duration, arg_aws_region, arg_session_duration) -> Tuple[str, int]:
     if conf_region is None and arg_aws_region is None:
         log_stream.info('Defaulting the region to us-east-1')
         log_stream.info('A custom region may be provided using the config file or the command line argument.')
@@ -185,11 +186,11 @@ class Config:
             self.check_for_map_file()
             self.read_map_file()
 
-    def read_global_settings(self):
+    def read_global_settings(self)-> Tuple[str, str, str, int, str]:
         aws_region = None
         username = None
         saved_password = None
-        session_duration = None
+        session_duration = 0
         browser = None
         log_stream.info('Read settings from global block')
 
@@ -224,12 +225,12 @@ class Config:
         except configparser.NoSectionError:
             pass
 
-        return aws_region, username, saved_password, session_duration, browser
+        return str(aws_region), str(username), str(saved_password), int(session_duration), str(browser)
 
-    def read_config(self, aws_profile_name, text_menu, use_idp, arg_username):
+    def read_config(self, aws_profile_name, text_menu, use_idp, arg_username) -> Tuple[str, str, str, str, str, int, str, str, str, str, str, str, str]:
         account_number = None
         gui_name = None
-        session_duration = None
+        session_duration = 0
         principle_arn = None
         role_arn = None
         aws_region = None
@@ -295,8 +296,8 @@ class Config:
         except KeyError as missing_dsso_url:
             log_stream.info('Not configured to use DSSO. If your organization has this feature enabled and it is not configured the request will timeout')
 
-        return principle_arn, role_arn, username, aws_region, first_page, session_duration, \
-            saml_provider_name, idp_login_title, gui_name, browser, saved_password, account_number, dsso_url
+        return str(principle_arn), str(role_arn), str(username), str(aws_region), str(first_page), int(session_duration), \
+            str(saml_provider_name), str(idp_login_title), str(gui_name), str(browser), str(saved_password), str(account_number), str(dsso_url)
 
     def revoke_creds(self, profile_name):
         self.configCredentials[profile_name] = {}

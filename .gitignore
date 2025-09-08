@@ -8,3 +8,5 @@ drivers/*
 /poetry.lock
 /docker/Dockerfile-amzlnx2
 .vscode/*
+config/private_key.pem
+config/public_key.pem
