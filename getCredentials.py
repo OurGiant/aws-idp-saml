@@ -7,6 +7,8 @@ import Password
 import SAMLSelector
 import Utilities
 from Logging import Logging
+from typing  import Any, Dict, List
+
 
 log_stream = Logging('get_credentials')
 
@@ -71,8 +73,9 @@ def main():
         try:
             account_name = selected_role['account_name']
         except KeyError:
-            account_name = selected_role['account_number']
-        account_number = selected_role['account_number']
+            account_name: str = selected_role['account_number']
+        
+        account_number: str = selected_role['account_number']
     else:
         profile_name = aws_profile_name
         used_profile_name_param = True
@@ -95,7 +98,7 @@ def main():
         aws_user_id = AWS.STS.get_aws_caller_id(clean_profile_name)
 
         sts_expires_local_time: str = sts_expiration.strftime("%c")
-        log_stream.info('Token issued for ' + aws_user_id + ' in account ' + account_name)
+        log_stream.info('Token issued for ' + str(aws_user_id) + ' in account ' + str(account_name))
         log_stream.info('Token will expire at ' + sts_expires_local_time)
 
         if arg_encrypted:

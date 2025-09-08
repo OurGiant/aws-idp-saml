@@ -212,11 +212,12 @@ def get_browser_type():
     return browser
 
 
-def get_session_duration():
+def get_session_duration() -> int:
     *nonsense, session_duration, browser = config.read_global_settings()
     if session_duration is None:
         session_duration = 0
-    return session_duration
+    return int(session_duration)
+
 
 def encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token):
     from cryptography.hazmat.primitives import serialization, hashes
@@ -224,8 +225,15 @@ def encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token):
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     import os
     
+    home = str(Path.home())
+    AWSRoot = home + "/.aws/"
+    public_key_file = AWSRoot + "public_key.pem"
+
+    if not os.path.exists(public_key_file):
+        log_stream.fatal('No public key found, please run keygen.py to generate a public/private key pair')
+        return "Encryption Error"    
     try:
-        with open('config/public_key.pem', 'rb') as f:
+        with open(public_key_file, 'rb') as f:
             public_key = serialization.load_pem_public_key(f.read())
     except FileNotFoundError:
         log_stream.fatal('No public key found, please run keygen.py to generate a public/private key pair')
