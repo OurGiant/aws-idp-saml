@@ -10,7 +10,6 @@ from Logging import Logging
 from typing import Dict, Tuple
 
 log_stream = Logging('config')
-#additional line
 
 
 def missing_config_file_message():
@@ -126,7 +125,7 @@ class Config:
     def get_saml_info(self):
         idp_name = "default"
         while idp_name not in constants.valid_idp:
-            idp_name: str = input('What is the name of your provider? [' + ','.join(constants.valid_idp) + '] ').lower()
+            idp_name: str = input('What is the name of your provider? [' + ', '.join(constants.valid_idp) + '] ').lower()
         log_stream.info('Information may be obtained from your IdP admin')
         login_page: str = input('What is the application login URL for your IdP? ')
         login_title: str = input('What is the HTML title on the login page? ')
@@ -192,6 +191,7 @@ class Config:
         saved_password = None
         session_duration = 0
         browser = None
+        saml_provider = None
         log_stream.info('Read settings from global block')
 
         try:
@@ -224,6 +224,12 @@ class Config:
             pass
         except configparser.NoSectionError:
             pass
+        try:
+            saml_provider = self.configSAML.get('global', 'samlProvider')
+        except configparser.NoOptionError:
+            pass
+        except configparser.NoSectionError:
+            pass
 
         return str(aws_region), str(username), str(saved_password), int(session_duration), str(browser)
 
@@ -236,35 +242,37 @@ class Config:
         aws_region = None
         browser = None
         username = None
+        saml_provider = None
         saved_password = None
         dsso_url = None
 
         # check for global variables. read if any, these will be overwritten by CLI and configuration in account blocks
-        aws_region, username, saved_password, session_duration, browser \
+        aws_region, username, saved_password, saml_provider, session_duration, browser \
             = self.read_global_settings()
 
         if text_menu is False and aws_profile_name is not None:
             try:
-                self.configSAML.get(aws_profile_name, 'samlProvider')
+                self.configSAML.has_option(aws_profile_name, 'samlProvider')
             except configparser.NoSectionError as e:
                 log_stream.fatal('No such AWS profile ' + aws_profile_name)
                 raise SystemExit(1)
 
             log_stream.info('Reading configuration info for profile ' + aws_profile_name)
+            profile = self.configSAML[aws_profile_name]
             try:
-                aws_region = self.configSAML[aws_profile_name]['awsRegion']
+                aws_region = profile.get('awsRegion', fallback= aws_region)
             except KeyError:
                 aws_region = None
             try:
-                session_duration = self.configSAML[aws_profile_name]['sessionDuration']
+                session_duration = profile.get('sessionDuration')
             except KeyError:
                 pass
             try:
-                account_number = self.configSAML[aws_profile_name]['accountNumber']
-                iam_role = self.configSAML[aws_profile_name]['IAMRole']
-                saml_provider = self.configSAML[aws_profile_name]['samlProvider']
-                username = self.configSAML[aws_profile_name]['username']
-                gui_name = self.configSAML[aws_profile_name]['guiName']
+                account_number = profile.get('accountNumber')
+                iam_role = profile.get('IAMRole')
+                saml_provider = profile.get('samlProvider', fallback=saml_provider)
+                username = profile.get('username', fallback=username)
+                gui_name = profile.get('guiName')
             except KeyError as missing_config_error:
                 missing_config_property: str = missing_config_error.args[0]
                 log_stream.fatal('Missing configuration property: ' + missing_config_property)
