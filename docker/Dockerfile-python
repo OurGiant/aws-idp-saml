@@ -1,4 +1,4 @@
-FROM python:3.13-rc-slim
+FROM python:3.14-rc-slim
 RUN apt update && apt -y install ca-certificates curl chromium\
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 1000 hventure \

@@ -19,6 +19,12 @@ __console_log_level__ = logging.INFO
 valid_browsers = ['chrome', 'firefox']
 valid_idp = ['okta']
 
+firefox_binary_location = {
+    "windows": "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
+    "macos": "/Applications/Firefox.app/Contents/MacOS/firefox",
+}
+
+
 chrome_remote_files = {
     "windows": "chromedriver_win32.zip",
     "linux": "chromedriver_linux64.zip",

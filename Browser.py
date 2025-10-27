@@ -117,6 +117,12 @@ def download_chromedriver():
         local_file = 'drivers/' + constants.chrome_local_file[operating_system]
         try:
             os.remove(local_file)
+            if operating_system == 'windows':
+                try:
+                    os.remove('drivers\\LICENSE.chromedriver')
+                    os.remove('drivers\\THIRD_PARTY_NOTICES.chromedriver')
+                except FileNotFoundError:
+                    pass
         except FileNotFoundError:
             pass
         return Utilities.extract_zip_archive(driver_archive)
@@ -208,7 +214,7 @@ def setup_browser(user_browser, use_debug):
 
     if user_browser == 'firefox':
         from selenium.webdriver.firefox.options import Options as FirefoxOptions
-        from selenium.webdriver.chrome.service import Service as FirefoxService
+        from selenium.webdriver.firefox.service import Service as FirefoxService
 
         browser_options = FirefoxOptions()
         browser_options.log.level = "trace"
@@ -221,12 +227,15 @@ def setup_browser(user_browser, use_debug):
             else:
                 driver_executable = verify_drivers('firefox')
         else:
+            firefox_binary_path = constants.firefox_binary_location[operating_system]
+            browser_options.binary_location = firefox_binary_path
             driver_executable = verify_drivers('firefox')
         firefox_service = FirefoxService(executable_path=driver_executable)
         try:
             driver = webdriver.Firefox(service=firefox_service, options=browser_options)
             is_driver_loaded = True
         except se.WebDriverException as e:
+            log_stream.critical(str(e))
             download_gecko_driver()
             firefox_service = FirefoxService(executable_path=driver_executable)
             try:
@@ -253,7 +262,8 @@ def setup_browser(user_browser, use_debug):
         try:
             driver = webdriver.Chrome(service=chrome_service, options=browser_options)
             is_driver_loaded = True
-        except se.WebDriverException:
+        except se.WebDriverException as e:
+            log_stream.critical(str(e))
             log_stream.info('Attempting to download the latest chromedriver')
             download_chromedriver()
             chrome_service = ChromeService(executable_path=driver_executable)
@@ -262,7 +272,8 @@ def setup_browser(user_browser, use_debug):
                 is_driver_loaded = True
             except se.WebDriverException as missing_browser_driver_error:
                 missing_browser_message(user_browser, missing_browser_driver_error)
-        except se.WebDriverException:
+        except se.WebDriverException as e:
+            log_stream.critical(str(e))
             log_stream.info('Attempting to download the latest chromedriver')
             download_chromedriver()
             chrome_service = ChromeService(executable_path=driver_executable)
