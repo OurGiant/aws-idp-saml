@@ -185,7 +185,7 @@ class Config:
             self.check_for_map_file()
             self.read_map_file()
 
-    def read_global_settings(self)-> Tuple[str, str, str, int, str]:
+    def read_global_settings(self)-> Tuple[str, str, str, str, int, str]:
         aws_region = None
         username = None
         saved_password = None
@@ -201,7 +201,7 @@ class Config:
         except configparser.NoSectionError:
             pass
         try:
-            session_duration = self.configSAML.get('global', 'sessionDuration')
+            session_duration = self.configSAML.get('global', 'sessionduration')
         except configparser.NoOptionError:
             pass
         except configparser.NoSectionError:
@@ -219,19 +219,19 @@ class Config:
         except configparser.NoSectionError:
             pass
         try:
-            aws_region = self.configSAML.get('global', 'awsRegion')
+            aws_region = self.configSAML.get('global', 'awsregion')
         except configparser.NoOptionError:
             pass
         except configparser.NoSectionError:
             pass
         try:
-            saml_provider = self.configSAML.get('global', 'samlProvider')
+            saml_provider = self.configSAML.get('global', 'samlprovider')
         except configparser.NoOptionError:
             pass
         except configparser.NoSectionError:
             pass
 
-        return str(aws_region), str(username), str(saved_password), int(session_duration), str(browser)
+        return str(aws_region), str(username), str(saved_password), str(saml_provider), int(session_duration), str(browser)
 
     def read_config(self, aws_profile_name, text_menu, use_idp, arg_username) -> Tuple[str, str, str, str, str, int, str, str, str, str, str, str, str]:
         account_number = None
@@ -263,10 +263,10 @@ class Config:
                 aws_region = profile.get('awsRegion', fallback= aws_region)
             except KeyError:
                 aws_region = None
-            try:
-                session_duration = profile.get('sessionDuration')
-            except KeyError:
-                pass
+
+            if session_duration == 0: 
+                session_duration = profile.get('sessionDuration','3600')
+
             try:
                 account_number = profile.get('accountNumber')
                 iam_role = profile.get('IAMRole')
