@@ -273,7 +273,7 @@ def setup_browser(user_browser, use_debug):
             except se.WebDriverException as missing_browser_driver_error:
                 missing_browser_message(user_browser, missing_browser_driver_error)
         except se.WebDriverException as e:
-            log_stream.critical(str(e)):
+            log_stream.critical(str(e))
             log_stream.info('Attempting to download the latest chromedriver')
             download_chromedriver()
             chrome_service = ChromeService(executable_path=driver_executable)
