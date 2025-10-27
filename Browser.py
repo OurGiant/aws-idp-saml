@@ -263,7 +263,7 @@ def setup_browser(user_browser, use_debug):
             driver = webdriver.Chrome(service=chrome_service, options=browser_options)
             is_driver_loaded = True
         except se.WebDriverException as e:
-            log_stream.critical(str(e)):
+            log_stream.critical(str(e))
             log_stream.info('Attempting to download the latest chromedriver')
             download_chromedriver()
             chrome_service = ChromeService(executable_path=driver_executable)
