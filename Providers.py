@@ -105,17 +105,25 @@ class UseIdP:
         if not use_dsso:
             log_stream.info('Use Okta Login')
             ScreenshotRecorder.capture(driver, "okta_login_page")
+            
+            # Check if password field is already visible (username pre-filled on managed devices)
             try:
-                # Enter the username and click the "Next" button
-                log_stream.debug('Entering username')  # Don't log the actual username
-                helper.enter_text((name_locator, username_field), username, "username field")
-                log_stream.debug('Clicking username next button')
-                helper.click_element((class_name_locator, username_next_button), "username next button")
-                ScreenshotRecorder.capture(driver, "after_username_entry")
-            except (se.NoSuchElementException, se.TimeoutException):
-                ScreenshotRecorder.capture(driver, "username_entry_failed")
-                saml_response = "CouldNotEnterFormData"
-                return saml_response
+                helper.wait_for_element((class_name_locator, password_field), "password field")
+                log_stream.info('Password field already visible - username pre-filled, skipping username entry')
+                ScreenshotRecorder.capture(driver, "username_prefilled")
+            except se.TimeoutException:
+                # Password field not visible, proceed with username entry
+                log_stream.info('Username field required - proceeding with username entry')
+                try:
+                    log_stream.debug('Entering username')  # Don't log the actual username
+                    helper.enter_text((name_locator, username_field), username, "username field")
+                    log_stream.debug('Clicking username next button')
+                    helper.click_element((class_name_locator, username_next_button), "username next button")
+                    ScreenshotRecorder.capture(driver, "after_username_entry")
+                except (se.NoSuchElementException, se.TimeoutException):
+                    ScreenshotRecorder.capture(driver, "username_entry_failed")
+                    saml_response = "CouldNotEnterFormData"
+                    return saml_response
 
         if not use_dsso:
             try:
