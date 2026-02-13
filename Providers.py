@@ -8,6 +8,7 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 
 from Logging import Logging
+from ScreenshotRecorder import ScreenshotRecorder
 
 log_stream = Logging('providers')
 
@@ -19,25 +20,31 @@ link_text_locator = By.LINK_TEXT
 name_locator = By.NAME
 
 
-def click_okta_mfa(wait):
+def click_okta_mfa(wait, driver):
     select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[2]/div[2]/div[2]/a'
     try:
         # Select the push notification option and click it
         log_stream.info('Select Push Notification')
+        ScreenshotRecorder.capture(driver, "before_mfa_selection")
         send_push_notification = wait.until(ec.element_to_be_clickable((xpath_locator, select_push_notification)))
         send_push_notification.click()
+        ScreenshotRecorder.capture(driver, "after_mfa_selection")
     except se.ElementClickInterceptedException:
+        ScreenshotRecorder.capture(driver, "mfa_click_intercepted")
         saml_response = "CouldNotEnterFormData"
         return saml_response
 
-def click_okta_fastpass(wait):
+def click_okta_fastpass(wait, driver):
     select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[3]/div[2]/div[2]/a'
     try:
         # Select the push notification option and click it
         log_stream.info('Select Okta Fast Pass Notification')
+        ScreenshotRecorder.capture(driver, "before_fastpass_selection")
         send_push_notification = wait.until(ec.element_to_be_clickable((xpath_locator, select_push_notification)))
         send_push_notification.click()
+        ScreenshotRecorder.capture(driver, "after_fastpass_selection")
     except se.ElementClickInterceptedException:
+        ScreenshotRecorder.capture(driver, "fastpass_click_intercepted")
         saml_response = "CouldNotEnterFormData"
         return saml_response
 
@@ -72,25 +79,32 @@ class UseIdP:
 
         username_field = "identifier"
         password_field = "password-with-toggle"
-
+        # if driver.capabilities['browserName'] == 'chrome' or driver.capabilities['browserName'] == 'firefox':
+        #     log_stream.info('Checking for DSSO')
+        #     try:
+        #         wait.until(lambda driver: dsso_url in driver.current_url)
         if driver.capabilities['browserName'] == 'chrome':
             log_stream.info('Checking for DSSO')
+            ScreenshotRecorder.capture(driver, "dsso_check_start")
             try:
-                wait.until(ec.url_to_be(dsso_url))
+                wait.until(lambda driver: dsso_url in driver.current_url)
                 log_stream.info('Follow DSSO Path')
+                ScreenshotRecorder.capture(driver, "dsso_detected")
                 if use_okta_fastpass is True:
-                    saml_response = click_okta_fastpass(wait)
+                    saml_response = click_okta_fastpass(wait, driver)
                 else:
-                    saml_response = click_okta_mfa(wait)
+                    saml_response = click_okta_mfa(wait, driver)
                 use_dsso = True
                 if saml_response == "CouldNotEnterFormData":
                     return saml_response
             except se.TimeoutException:
                 log_stream.info('Follow DSSO Path')
                 log_stream.info('Not using DSSO')
+                ScreenshotRecorder.capture(driver, "dsso_timeout")
         if not use_dsso:
             username_next_button = wait.until(ec.element_to_be_clickable((class_name_locator, username_next_button)))
             log_stream.info('Use Okta Login')
+            ScreenshotRecorder.capture(driver, "okta_login_page")
             try:
                 # Enter the username and click the "Next" button
                 log_stream.info('Enter Username')
@@ -99,7 +113,9 @@ class UseIdP:
                 username_dialog.send_keys(username)
                 log_stream.info('Click Button')
                 username_next_button.click()
+                ScreenshotRecorder.capture(driver, "after_username_entry")
             except se.NoSuchElementException:
+                ScreenshotRecorder.capture(driver, "username_entry_failed")
                 saml_response = "CouldNotEnterFormData"
                 return saml_response
 
@@ -113,22 +129,26 @@ class UseIdP:
                 log_stream.info('Click Button')
                 password_next_button = driver.find_element(class_name_locator, password_next_button)
                 password_next_button.click()
+                ScreenshotRecorder.capture(driver, "after_password_entry")
             except se.NoSuchElementException:
+                ScreenshotRecorder.capture(driver, "password_entry_failed")
                 saml_response = "CouldNotEnterFormData"
                 return saml_response
 
             if use_okta_fastpass is True:
-                saml_response = click_okta_fastpass(wait)
+                saml_response = click_okta_fastpass(wait, driver)
             else:
-                saml_response = click_okta_mfa(wait)
+                saml_response = click_okta_mfa(wait, driver)
             if saml_response == "CouldNotEnterFormData":
                 return saml_response
 
         try:
             completed_login = wait.until(ec.title_is(saml_page_title))
+            ScreenshotRecorder.capture(driver, "login_completed")
         except se.TimeoutException:
             log_stream.fatal('Timeout waiting for MFA')
             log_stream.info('Saving screenshot for debugging')
+            ScreenshotRecorder.capture(driver, "login_timeout")
             screenshot = 'failed_login_screenshot-' + str(uuid.uuid4()) + '.png'
             driver.save_screenshot(screenshot)
             raise SystemExit(1)
