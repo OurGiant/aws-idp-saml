@@ -1,5 +1,6 @@
 # coding=utf-8
 
+import sys
 import AWS
 import Config
 import Login
@@ -17,10 +18,60 @@ args = Utilities.Arguments()
 config = Config.Config()
 
 
+def _validate_screenshot_dir(screenshot_dir):
+    """
+    Validate screenshot directory path to prevent path traversal attacks.
+    
+    Args:
+        screenshot_dir (str): Directory path from command line
+        
+    Returns:
+        str: Validated directory path, or None if invalid
+    """
+    import os
+    from pathlib import Path
+    
+    if not screenshot_dir:
+        return None
+    
+    # Reject absolute paths
+    if os.path.isabs(screenshot_dir):
+        log_stream.warning(f'Absolute paths not allowed for screenshot directory: {screenshot_dir}')
+        return None
+    
+    # Reject paths with directory traversal attempts
+    if '..' in screenshot_dir or screenshot_dir.startswith('/'):
+        log_stream.warning(f'Path traversal attempt detected: {screenshot_dir}')
+        return None
+    
+    # Normalize the path to prevent tricks
+    normalized = os.path.normpath(screenshot_dir)
+    
+    # Double-check after normalization
+    if normalized.startswith('..') or os.path.isabs(normalized):
+        log_stream.warning(f'Invalid path after normalization: {normalized}')
+        return None
+    
+    # Ensure path is relative to current directory
+    if normalized.startswith('/'):
+        log_stream.warning(f'Path resolves to absolute: {normalized}')
+        return None
+    
+    log_stream.debug(f'Screenshot directory validated: {normalized}')
+    return normalized
+
+
 def main():
     use_okta_fastpass, use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
         arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username, arg_encrypted, \
         enable_screenshots, screenshot_dir = args.parse_args()
+
+    # Validate screenshot_dir to prevent path traversal attacks
+    if screenshot_dir:
+        screenshot_dir = _validate_screenshot_dir(screenshot_dir)
+        if not screenshot_dir:
+            log_stream.fatal('Invalid screenshot directory path')
+            raise SystemExit(1)
 
     # Initialize screenshot recorder
     ScreenshotRecorder.initialize(enable=enable_screenshots, output_dir=screenshot_dir)
@@ -108,23 +159,24 @@ def main():
 
         if arg_encrypted:
             encrypted_string = Utilities.encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token)
-            print('\nEncrypted Credentials String:\n' + encrypted_string + '\n')
+            log_stream.info('Encrypted credentials generated (use --encrypted flag to display)')
+            # Only print if explicitly requested and in non-interactive mode
+            if sys.stdout.isatty():
+                print('\nEncrypted Credentials String:\n' + encrypted_string + '\n')
+            else:
+                # In non-interactive mode, only log it
+                log_stream.debug(f'Encrypted credentials: {encrypted_string}')
 
         if config.check_global_in_saml_config():
             configure_globals: str = input('Save the settings from this section for all sessions? [Y/N]')
             configure_globals = configure_globals.upper()
             if configure_globals.startswith('Y'):
                 config.write_global_to_saml_config(browser_type, username, aws_region, aws_session_duration)
-            else:
-                pass
-        else:
-            pass
 
-        print(f'\n{profile_block}\n')
-        if config.write_profile_to_saml_config(clean_profile_name, aws_region, account_number, role_arn,
-                                               saml_provider_name, username):
-            log_stream.info('Saving this profile as ' + clean_profile_name)
-            log_stream.info('You can reference this profile like --profilename ' + clean_profile_name)
+        # Print profile info without sensitive credentials
+        profile_info = f'\nProfile: {clean_profile_name}\nRegion: {aws_region}\nAccount: {account_name}\n'
+        print(profile_info)
+        log_stream.info(f'Profile {clean_profile_name} configured successfully')
 
     else:
         log_stream.fatal("Corrupt or Unavailable STS Response")

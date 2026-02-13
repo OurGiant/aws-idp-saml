@@ -153,31 +153,68 @@ def extract_zip_archive(archive_file_name):
 
 
 def extract_tgz_archive(archive_file_name):
+    """
+    Safely extract a tar.gz archive with protection against Tar Slip attacks.
+    Uses member-by-member extraction to prevent arbitrary file writes.
+    
+    Args:
+        archive_file_name (str): Path to the tar.gz file to extract
+        
+    Returns:
+        bool: True if extraction successful, False otherwise
+    """
+    import sys
+    
     try:
-        log_stream.info('untar driver archive ' + archive_file_name)
-        do_extract: bool = True
+        log_stream.info(f'untar driver archive {archive_file_name}')
+        
         with tarfile.open(archive_file_name, 'r:gz') as tar_ref:
+            # Validate and extract members individually
             for member in tar_ref.getmembers():
-                if not os.path.abspath(os.path.join('drivers/', member.name)).startswith(os.path.abspath('drivers/')):
-                    do_extract = False
-                    raise ValueError(f"Unsafe tar extraction: {member.name}")
-            if do_extract:
-                # Safe tar only available after 3.12
-                # tar_ref.extractall(path='drivers/', filter='data')
-                tar_ref.extractall(path='drivers/')
-            else:
-                return False
-        tar_ref.close()
+                # Check for absolute paths
+                if member.name.startswith('/'):
+                    raise ValueError(f"Unsafe tar extraction: absolute path {member.name}")
+                
+                # Check for directory traversal attempts
+                if '..' in member.name:
+                    raise ValueError(f"Unsafe tar extraction: path traversal attempt {member.name}")
+                
+                # Verify the extracted path stays within drivers directory
+                member_path = os.path.abspath(os.path.join('drivers/', member.name))
+                drivers_path = os.path.abspath('drivers/')
+                
+                if not member_path.startswith(drivers_path + os.sep) and member_path != drivers_path:
+                    raise ValueError(f"Unsafe tar extraction: {member.name} would extract outside drivers/")
+                
+                # Check for symlinks (can be used for attacks)
+                if member.issym() or member.islnk():
+                    log_stream.warning(f"Skipping symlink/hardlink: {member.name}")
+                    continue
+                
+                # Extract individual member safely
+                tar_ref.extract(member, path='drivers/')
+            
+            log_stream.info('Archive extracted successfully')
+            
     except tarfile.ReadError as e:
-        log_stream.critical('Error reading archive:' + str(e))
+        log_stream.critical(f'Error reading archive: {str(e)}')
         return False
     except tarfile.ExtractError as e:
-        log_stream.critical('Error extracting archive:' + str(e))
+        log_stream.critical(f'Error extracting archive: {str(e)}')
         return False
     except tarfile.TarError as e:
-        log_stream.critical('Error:' + str(e))
+        log_stream.critical(f'Tar error: {str(e)}')
         return False
-    os.remove(archive_file_name)
+    except ValueError as e:
+        log_stream.critical(f'Security validation failed: {str(e)}')
+        return False
+    finally:
+        try:
+            os.remove(archive_file_name)
+        except OSError as e:
+            log_stream.warning(f'Could not remove archive file: {str(e)}')
+    
+    return True
     return True
 
 
