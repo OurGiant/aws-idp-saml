@@ -7,6 +7,7 @@ import Password
 import SAMLSelector
 import Utilities
 from Logging import Logging
+from ScreenshotRecorder import ScreenshotRecorder
 from typing  import Any, Dict, List
 
 
@@ -18,7 +19,11 @@ config = Config.Config()
 
 def main():
     use_okta_fastpass, use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
-        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username, arg_encrypted = args.parse_args()
+        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username, arg_encrypted, \
+        enable_screenshots, screenshot_dir = args.parse_args()
+
+    # Initialize screenshot recorder
+    ScreenshotRecorder.initialize(enable=enable_screenshots, output_dir=screenshot_dir)
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
         saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, account_number, \
