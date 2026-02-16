@@ -12,3 +12,4 @@ config/private_key.pem
 config/public_key.pem
 screenshots/**
 screens/**
+failed_login_screenshot*

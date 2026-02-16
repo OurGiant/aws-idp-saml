@@ -107,8 +107,11 @@ class UseIdP:
             ScreenshotRecorder.capture(driver, "okta_login_page")
             
             # Check if password field is already visible (username pre-filled on managed devices)
+            # Use a short timeout (3 seconds) for this check since the page should already be loaded
+            short_wait = WebDriverWait(driver, 3)
+            short_helper = SeleniumHelper(driver, short_wait)
             try:
-                helper.wait_for_element((class_name_locator, password_field), "password field")
+                short_helper.wait_for_element((class_name_locator, password_field), "password field")
                 log_stream.info('Password field already visible - username pre-filled, skipping username entry')
                 ScreenshotRecorder.capture(driver, "username_prefilled")
             except se.TimeoutException:
