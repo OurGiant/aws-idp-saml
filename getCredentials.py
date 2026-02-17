@@ -1,6 +1,7 @@
 # coding=utf-8
 
 import sys
+import signal
 import AWS
 import Config
 import Login
@@ -13,6 +14,17 @@ from typing  import Any, Dict, List
 
 
 log_stream = Logging('get_credentials')
+
+
+def signal_handler(sig, frame):
+    """Handle Ctrl+C gracefully."""
+    print('\n\nInterrupted by user. Exiting gracefully...')
+    log_stream.info('Process interrupted by user (Ctrl+C)')
+    sys.exit(0)
+
+
+# Register the signal handler
+signal.signal(signal.SIGINT, signal_handler)
 
 args = Utilities.Arguments()
 config = Config.Config()
@@ -197,4 +209,9 @@ def main():
 
 if __name__ == "__main__":
     log_stream.info('start login process')
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('\n\nInterrupted by user. Exiting gracefully...')
+        log_stream.info('Process interrupted by user (Ctrl+C)')
+        sys.exit(0)

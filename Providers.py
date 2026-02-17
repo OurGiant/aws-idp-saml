@@ -21,6 +21,55 @@ link_text_locator = By.LINK_TEXT
 name_locator = By.NAME
 
 
+def check_for_mfa_screen(driver, wait, use_okta_fastpass):
+    """
+    Check if the MFA screen is already displayed (fully managed device scenario).
+    Uses page source inspection to detect stateToken presence.
+    
+    Args:
+        driver: Selenium WebDriver instance
+        wait: WebDriverWait instance
+        use_okta_fastpass: Boolean indicating which MFA method to use
+        
+    Returns:
+        tuple: (is_mfa_screen, saml_response) where is_mfa_screen is bool and 
+               saml_response is the result if MFA was clicked
+    """
+    try:
+        # Check if page source contains stateToken variable (present on MFA pages)
+        # This is more reliable than looking for specific buttons
+        page_source = driver.page_source
+        
+        # MFA pages have: var stateToken = '02.id.xxxxx';
+        # Login pages also have stateToken, so we need additional checks
+        if "var stateToken = " in page_source:
+            # Additional check: MFA pages don't have username or password fields
+            # but DO have the signin-container populated
+            if "identifier" not in page_source and "password-with-toggle" not in page_source:
+                log_stream.info('MFA screen detected via page source - fully managed device, skipping username and password entry')
+                ScreenshotRecorder.capture(driver, "managed_device_mfa_screen")
+                
+                # Give the page a moment to fully render the MFA options
+                import time
+                time.sleep(1)
+                
+                # Click the appropriate MFA button
+                if use_okta_fastpass:
+                    saml_response = click_okta_fastpass(wait, driver)
+                else:
+                    saml_response = click_okta_mfa(wait, driver)
+                    
+                return True, saml_response
+        
+        # Not on MFA screen
+        return False, None
+        
+    except Exception as e:
+        log_stream.warning(f'Error checking for MFA screen: {str(e)}')
+        # On any error, assume we're not on MFA screen and continue normal flow
+        return False, None
+
+
 def click_okta_mfa(wait, driver):
     """Click the MFA push notification button."""
     select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[2]/div[2]/div[2]/a'
@@ -106,27 +155,36 @@ class UseIdP:
             log_stream.info('Use Okta Login')
             ScreenshotRecorder.capture(driver, "okta_login_page")
             
-            # Check if password field is already visible (username pre-filled on managed devices)
-            # Use a short timeout (3 seconds) for this check since the page should already be loaded
-            short_wait = WebDriverWait(driver, 3)
-            short_helper = SeleniumHelper(driver, short_wait)
-            try:
-                short_helper.wait_for_element((class_name_locator, password_field), "password field")
-                log_stream.info('Password field already visible - username pre-filled, skipping username entry')
-                ScreenshotRecorder.capture(driver, "username_prefilled")
-            except se.TimeoutException:
-                # Password field not visible, proceed with username entry
-                log_stream.info('Username field required - proceeding with username entry')
+            # Check if we're already on the MFA screen (fully managed device - both username and password pre-authenticated)
+            is_mfa_screen, mfa_response = check_for_mfa_screen(driver, wait, use_okta_fastpass)
+            
+            if is_mfa_screen:
+                # Already on MFA screen, credentials were pre-authenticated
+                if mfa_response == "CouldNotEnterFormData":
+                    return mfa_response
+                # Skip to the completion check
+                use_dsso = True  # Reuse this flag to skip password entry
+            else:
+                # Not on MFA screen yet, check for password field (username pre-filled on managed devices)
+                short_wait = WebDriverWait(driver, 3)
+                short_helper = SeleniumHelper(driver, short_wait)
                 try:
-                    log_stream.debug('Entering username')  # Don't log the actual username
-                    helper.enter_text((name_locator, username_field), username, "username field")
-                    log_stream.debug('Clicking username next button')
-                    helper.click_element((class_name_locator, username_next_button), "username next button")
-                    ScreenshotRecorder.capture(driver, "after_username_entry")
-                except (se.NoSuchElementException, se.TimeoutException):
-                    ScreenshotRecorder.capture(driver, "username_entry_failed")
-                    saml_response = "CouldNotEnterFormData"
-                    return saml_response
+                    short_helper.wait_for_element((class_name_locator, password_field), "password field")
+                    log_stream.info('Password field already visible - username pre-filled, skipping username entry')
+                    ScreenshotRecorder.capture(driver, "username_prefilled")
+                except se.TimeoutException:
+                    # Password field not visible, proceed with username entry
+                    log_stream.info('Username field required - proceeding with username entry')
+                    try:
+                        log_stream.debug('Entering username')  # Don't log the actual username
+                        helper.enter_text((name_locator, username_field), username, "username field")
+                        log_stream.debug('Clicking username next button')
+                        helper.click_element((class_name_locator, username_next_button), "username next button")
+                        ScreenshotRecorder.capture(driver, "after_username_entry")
+                    except (se.NoSuchElementException, se.TimeoutException):
+                        ScreenshotRecorder.capture(driver, "username_entry_failed")
+                        saml_response = "CouldNotEnterFormData"
+                        return saml_response
 
         if not use_dsso:
             try:
