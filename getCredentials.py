@@ -64,7 +64,7 @@ def _validate_screenshot_dir(screenshot_dir):
 def main():
     use_okta_fastpass, use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
         arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username, arg_encrypted, \
-        enable_screenshots, screenshot_dir = args.parse_args()
+        enable_screenshots, screenshot_dir, show_credentials = args.parse_args()
 
     # Validate screenshot_dir to prevent path traversal attacks
     if screenshot_dir:
@@ -172,6 +172,18 @@ def main():
             configure_globals = configure_globals.upper()
             if configure_globals.startswith('Y'):
                 config.write_global_to_saml_config(browser_type, username, aws_region, aws_session_duration)
+
+        # Display credentials in plaintext if requested
+        if show_credentials:
+            print('\n' + '='*60)
+            print('AWS CREDENTIALS (PLAINTEXT)')
+            print('='*60)
+            print(f'AWS_ACCESS_KEY_ID={aws_access_id}')
+            print(f'AWS_SECRET_ACCESS_KEY={aws_secret_key}')
+            print(f'AWS_SESSION_TOKEN={aws_session_token}')
+            print('='*60)
+            print(f'Expires: {sts_expires_local_time}')
+            print('='*60 + '\n')
 
         # Print profile info without sensitive credentials
         profile_info = f'\nProfile: {clean_profile_name}\nRegion: {aws_region}\nAccount: {account_name}\n'

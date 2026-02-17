@@ -62,6 +62,8 @@ class Arguments:
                                  help="Enable screenshot recording during login")
         self.parser.add_argument("--screenshot-dir", type=str, default=None,
                                  help="Directory to save screenshots (default: screenshots/{timestamp})")
+        self.parser.add_argument("--show-credentials", type=bool, default=False, nargs='?', const=True,
+                                 help="Display AWS credentials in plaintext after SAML assume (disabled by default)")
         if len(sys.argv) == 0:
             log_stream.fatal("Arguments required")
             self.parser.print_help()
@@ -131,7 +133,7 @@ class Arguments:
 
         return self.use_okta_fastpass, self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
             self.store_password, self.session_duration, self.aws_region, self.text_menu, self.use_idp, self.username, \
-            self.args.encrypted, self.args.enable_screenshots, self.args.screenshot_dir
+            self.args.encrypted, self.args.enable_screenshots, self.args.screenshot_dir, self.args.show_credentials
 
 
 def extract_zip_archive(archive_file_name):
