@@ -3,6 +3,7 @@
 import getpass
 import os
 import sys
+import stat
 from datetime import datetime
 
 # third-party imports
@@ -15,6 +16,7 @@ log_stream = Logging('password')
 def check_store_perms(pass_key):
     """
     Check the permissions on the directory containing the password store file.
+    Enforces strict 0700 (rwx------) permissions - owner only.
 
     Args:
         pass_key (str): The path to the password store file.
@@ -24,20 +26,47 @@ def check_store_perms(pass_key):
 
     Returns:
         None.
-
     """
-    safe_perms = 0
-    if sys.platform == 'win32':
-        safe_perms = 16895
-    if sys.platform == 'linux' or sys.platform == 'darwin':
-        safe_perms = 16832
     key_path = os.path.dirname(pass_key)
     st = os.stat(key_path)
-    mode = int(st.st_mode)
-    if mode > safe_perms:
-        log_stream.fatal('Permissions on your store directory are too permissive. Please secure this directory from '
-                            'reading by anyone other than the owner')
-        raise SystemExit(1)
+    mode = stat.S_IMODE(st.st_mode)
+    
+    # Strict permission check: only owner should have rwx (0o700)
+    required_perms = 0o700
+    
+    if mode != required_perms:
+        log_stream.warning(f'Fixing insecure permissions on {key_path}')
+        try:
+            os.chmod(key_path, required_perms)
+            log_stream.info(f'Directory permissions corrected to 0700 (owner only)')
+        except OSError as e:
+            log_stream.fatal(f'Unable to fix directory permissions: {str(e)}')
+            raise SystemExit(1)
+
+
+def check_file_perms(file_path):
+    """
+    Check and enforce strict file permissions (0600 - owner read/write only).
+
+    Args:
+        file_path (str): Path to the file to check.
+
+    Returns:
+        None
+    """
+    if os.path.exists(file_path):
+        st = os.stat(file_path)
+        mode = stat.S_IMODE(st.st_mode)
+        required_perms = 0o600
+        
+        if mode != required_perms:
+            log_stream.warning(f'Fixing insecure permissions on {file_path}')
+            try:
+                os.chmod(file_path, required_perms)
+                log_stream.info(f'File permissions corrected to 0600 (owner only)')
+            except OSError as e:
+                log_stream.fatal(f'Unable to fix file permissions: {str(e)}')
+                raise SystemExit(1)
 
 
 """
@@ -131,6 +160,9 @@ def store_password(password, pass_key, pass_file):
 
     # Generate or retrieve the key from the key file
     key = generate_pass_store_key(pass_key)
+    
+    # Set strict permissions on key file (owner read/write only)
+    check_file_perms(pass_key)
 
     # Encode the password to bytes using UTF-8 encoding
     encoded_pass = password.encode()
@@ -144,9 +176,10 @@ def store_password(password, pass_key, pass_file):
     # Write the encrypted password to the password file
     with open(pass_file, "wb") as pass_file_handle:
         pass_file_handle.write(encrypted_pass)
-    pass_file_handle.close()
+    
+    # Set strict permissions on password file (owner read/write only)
+    check_file_perms(pass_file)
 
-    # Return nothing
     return
 
 

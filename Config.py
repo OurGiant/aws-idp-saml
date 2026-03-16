@@ -1,6 +1,7 @@
 # coding=utf-8
 import configparser
 import json
+import os
 import re
 from pathlib import Path
 
@@ -13,26 +14,26 @@ log_stream = Logging('config')
 
 
 def missing_config_file_message():
-    message = "You are missing the core config file required for the proper operation of this utility.\nThis " \
-              "file should be located in the .aws directory, found in your home directory "
-    message = message + "\nThis file contains ini style configuration sections containing information about the " \
-                        "accounts you are trying to access. "
-    message = message + "\nFor example:"
-    message = message + "\n\t[cloud1-prod]"
-    message = message + "\n\tawsRegion = us-east-1"
-    message = message + "\n\taccount_number ="
-    message = message + "\n\tIAMRole = PING-DevOps"
-    message = message + "\n\tsamlProvider = PING"
-    message = message + "\n\tusername=adUsername"
-    message = message + "\n\tguiName=production"
-    message = message + "\n\tsessionDuration=14400"
-    message = message + "\n\nThe configuration must also contain a section for the Authentication provider you " \
-                        "are using, ie: PING. Each provider section name must be prefixed with 'Fed-'"
-    message = message + "\nFor example:"
-    message = message + "\n\t[Fed-PING]"
-    message = message + "\n\tloginpage = https: //ping.mycompanydomain.com/idp/ping " \
-                        "startSSO.ping?PartnerSpId = urn:amazon: webservices "
-    message = message + "\n\nA sample file can be found in the same repository as the utility"
+    message = (
+        "You are missing the core config file required for the proper operation of this utility.\n"
+        "This file should be located in the .aws directory, found in your home directory.\n"
+        "This file contains ini style configuration sections containing information about the accounts you are trying to access.\n"
+        "For example:\n"
+        "\t[cloud1-prod]\n"
+        "\tawsRegion = us-east-1\n"
+        "\taccount_number =\n"
+        "\tIAMRole = PING-DevOps\n"
+        "\tsamlProvider = PING\n"
+        "\tusername=adUsername\n"
+        "\tguiName=production\n"
+        "\tsessionDuration=14400\n"
+        "\nThe configuration must also contain a section for the Authentication provider you are using, ie: PING. "
+        "Each provider section name must be prefixed with 'Fed-'\n"
+        "For example:\n"
+        "\t[Fed-PING]\n"
+        "\tloginpage = https://ping.mycompanydomain.com/idp/ping startSSO.ping?PartnerSpId = urn:amazon:webservices\n"
+        "\nA sample file can be found in the same repository as the utility"
+    )
     print(message)
     raise SystemExit(1)
 
@@ -74,17 +75,26 @@ def get_aws_variables(conf_region, conf_duration, arg_aws_region, arg_session_du
 
 class Config:
     def __init__(self):
+        import stat
+        
         self.executePath = str(Path(__file__).resolve().parents[0])
 
         home = str(Path.home())
-        self.AWSRoot = home + "/.aws/"
-        self.awsSAMLFile = self.AWSRoot + "samlsts"
+        self.AWSRoot = f"{home}/.aws/"
+        
+        # Ensure .aws directory exists with secure permissions (0700 - owner only)
+        aws_dir = Path(self.AWSRoot)
+        aws_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        
+        self.awsSAMLFile = f"{self.AWSRoot}samlsts"
 
         if not Path(self.awsSAMLFile).is_file():
             log_stream.warning('No SAML-STS file, one will be built for you using a series of questions')
             idp_name: str = self.get_saml_info()
             self.configSAML = configparser.ConfigParser()
             self.configSAML.read(self.awsSAMLFile)
+            # Set secure permissions on SAML config file
+            os.chmod(self.awsSAMLFile, 0o600)
         elif not Path(self.awsSAMLFile).is_file() and not Path('/.dockerenv').is_file():
             missing_config_file_message()
         else:
@@ -92,35 +102,37 @@ class Config:
             self.configSAML.read(self.awsSAMLFile)
 
         # READ IN AWS CREDENTIALS
-        self.awsCredentialsFile = self.AWSRoot + "credentials"
+        self.awsCredentialsFile = f"{self.AWSRoot}credentials"
         if Path(self.awsCredentialsFile).is_file() is True:
             self.configCredentials = configparser.ConfigParser()
             self.configCredentials.read(self.awsCredentialsFile)
         else:
-            log_stream.warning(
-                'AWS credentials file ' + self.awsCredentialsFile + ' is missing, this is must be the inital run')
+            log_stream.warning(f'AWS credentials file {self.awsCredentialsFile} is missing, this must be the initial run')
             log_stream.info('This program will create an AWS credentials file for you.')
 
             with open(self.awsCredentialsFile, 'w') as creds:
                 creds.write("#This is your AWS credentials file\n")
-            creds.close()
+            # Set secure permissions on credentials file (owner read/write only)
+            os.chmod(self.awsCredentialsFile, 0o600)
 
-        self.awsConfigFile = self.AWSRoot + "config"
+        self.awsConfigFile = f"{self.AWSRoot}config"
         if Path(self.awsConfigFile).is_file() is True:
             self.configConfig = configparser.ConfigParser()
             self.configConfig.read(self.awsConfigFile)
         else:
-            log_stream.critical('AWS config file ' + self.awsConfigFile + ' is missing, this is must be the inital run')
+            log_stream.critical(f'AWS config file {self.awsConfigFile} is missing, this must be the initial run')
             log_stream.critical('This program will create an AWS config file for you.')
 
             self.create_aws_config()
             self.configConfig = configparser.ConfigParser()
             self.configConfig.read(self.awsConfigFile)
+            # Set secure permissions on config file
+            os.chmod(self.awsConfigFile, 0o600)
             log_stream.info('Return to normal operations')
 
-        self.PassFile = self.AWSRoot + "saml.pass"
-        self.PassKey = self.AWSRoot + "saml.key"
-        self.AccountMap = self.AWSRoot + "account-map.json"
+        self.PassFile = f"{self.AWSRoot}saml.pass"
+        self.PassKey = f"{self.AWSRoot}saml.key"
+        self.AccountMap = f"{self.AWSRoot}account-map.json"
 
     def get_saml_info(self):
         idp_name = "default"
@@ -185,51 +197,33 @@ class Config:
             self.check_for_map_file()
             self.read_map_file()
 
-    def read_global_settings(self)-> Tuple[str, str, str, str, int, str]:
-        aws_region = None
-        username = None
-        saved_password = None
-        session_duration = 0
-        browser = None
-        saml_provider = None
-        log_stream.info('Read settings from global block')
+    def _get_config_value(self, section: str, key: str, default=None):
+        """
+        Helper method to safely retrieve config values with fallback to default.
+        
+        Args:
+            section (str): Config section name
+            key (str): Config key name
+            default: Default value if key not found
+            
+        Returns:
+            Config value or default if not found
+        """
+        try:
+            return self.configSAML.get(section, key)
+        except (configparser.NoOptionError, configparser.NoSectionError):
+            log_stream.debug(f'Config key {section}.{key} not found, using default')
+            return default
 
-        try:
-            browser = self.configSAML.get('global', 'browser')
-        except configparser.NoOptionError:
-            pass
-        except configparser.NoSectionError:
-            pass
-        try:
-            session_duration = self.configSAML.get('global', 'sessionduration')
-        except configparser.NoOptionError:
-            pass
-        except configparser.NoSectionError:
-            pass
-        try:
-            saved_password = self.configSAML.get('global', 'savedPassword')
-        except configparser.NoOptionError:
-            pass
-        except configparser.NoSectionError:
-            pass
-        try:
-            username = self.configSAML.get('global', 'username')
-        except configparser.NoOptionError:
-            pass
-        except configparser.NoSectionError:
-            pass
-        try:
-            aws_region = self.configSAML.get('global', 'awsregion')
-        except configparser.NoOptionError:
-            pass
-        except configparser.NoSectionError:
-            pass
-        try:
-            saml_provider = self.configSAML.get('global', 'samlprovider')
-        except configparser.NoOptionError:
-            pass
-        except configparser.NoSectionError:
-            pass
+    def read_global_settings(self)-> Tuple[str, str, str, str, int, str]:
+        log_stream.info('Read settings from global block')
+        
+        browser = self._get_config_value('global', 'browser')
+        session_duration = self._get_config_value('global', 'sessionduration', 0)
+        saved_password = self._get_config_value('global', 'savedPassword')
+        username = self._get_config_value('global', 'username')
+        aws_region = self._get_config_value('global', 'awsregion')
+        saml_provider = self._get_config_value('global', 'samlprovider')
 
         return str(aws_region), str(username), str(saved_password), str(saml_provider), int(session_duration), str(browser)
 
@@ -254,13 +248,13 @@ class Config:
             try:
                 self.configSAML.has_option(aws_profile_name, 'samlProvider')
             except configparser.NoSectionError as e:
-                log_stream.fatal('No such AWS profile ' + aws_profile_name)
+                log_stream.fatal(f'No such AWS profile {aws_profile_name}')
                 raise SystemExit(1)
 
-            log_stream.info('Reading configuration info for profile ' + aws_profile_name)
+            log_stream.info(f'Reading configuration info for profile {aws_profile_name}')
             profile = self.configSAML[aws_profile_name]
             try:
-                aws_region = profile.get('awsRegion', fallback= aws_region)
+                aws_region = profile.get('awsRegion', fallback=aws_region)
             except KeyError:
                 aws_region = None
 
@@ -275,28 +269,28 @@ class Config:
                 gui_name = profile.get('guiName')
             except KeyError as missing_config_error:
                 missing_config_property: str = missing_config_error.args[0]
-                log_stream.fatal('Missing configuration property: ' + missing_config_property)
+                log_stream.fatal(f'Missing configuration property: {missing_config_property}')
                 raise SystemExit(1)
-            role_arn = "arn:aws:iam::" + account_number + ":role/" + iam_role
+            role_arn = f"arn:aws:iam::{account_number}:role/{iam_role}"
             saml_provider_name = saml_provider.split('-', 1)[1]
-            principle_arn = "arn:aws:iam::" + account_number + ":saml-provider/" + saml_provider_name
+            principle_arn = f"arn:aws:iam::{account_number}:saml-provider/{saml_provider_name}"
         else:
             saml_provider = use_idp
             saml_provider_name = use_idp.split('-', 1)[1]
             username = arg_username
 
-        log_stream.info('Reading configuration for SAML provider ' + saml_provider_name)
+        log_stream.info(f'Reading configuration for SAML provider {saml_provider_name}')
         try:
             self.configSAML.get(saml_provider, 'loginpage')
         except configparser.NoSectionError:
-            log_stream.fatal('No such SAML provider ' + saml_provider_name)
+            log_stream.fatal(f'No such SAML provider {saml_provider_name}')
             raise SystemExit(1)
         try:
             first_page = self.configSAML[saml_provider]['loginpage']
             idp_login_title = str(self.configSAML[saml_provider]['loginTitle']).replace('"', '')
         except KeyError as missing_saml_provider_error:
             missing_saml_provider_property: str = missing_saml_provider_error.args[0]
-            log_stream.fatal('Missing SAML provider configuration property ' + missing_saml_provider_property)
+            log_stream.fatal(f'Missing SAML provider configuration property {missing_saml_provider_property}')
             raise SystemExit(1)
 
         try:
@@ -310,12 +304,14 @@ class Config:
     def revoke_creds(self, profile_name):
         self.configCredentials[profile_name] = {}
         self.configConfig["profile " + profile_name] = {}
+        
+        # Batch write operations
         with open(self.awsConfigFile, "w") as config:
             self.configConfig.write(config)
         with open(self.awsCredentialsFile, "w") as credentials:
             self.configCredentials.write(credentials)
-        log_stream.info('Revoked token for ' + profile_name)
-        pass
+        
+        log_stream.info(f'Revoked token for {profile_name}')
 
     def write_aws_config(self, access_key_id, secret_access_key, aws_session_token, aws_profile_name, aws_region,
                          account_number, used_profile_name_param):
@@ -328,28 +324,22 @@ class Config:
         self.configConfig["profile " + aws_profile_name] = {}
         self.configConfig["profile " + aws_profile_name]['region'] = aws_region
 
-        with open(self.awsConfigFile, "w") as config:
-            self.configConfig.write(config)
-        config.close()
-
-        with open(self.awsCredentialsFile, "w") as credentials:
-            self.configCredentials.write(credentials)
-        credentials.close()
-
         clean_profile_name, profile_block = self.create_profile_block(aws_profile_name, access_key_id,
                                                                       secret_access_key, aws_region, aws_session_token,
                                                                       account_number, used_profile_name_param)
         if used_profile_name_param is False:
             self.configCredentials.remove_section(aws_profile_name)
-
             self.configCredentials[clean_profile_name] = {}
             self.configCredentials[clean_profile_name]['aws_access_key_id'] = access_key_id
             self.configCredentials[clean_profile_name]['aws_secret_access_key'] = secret_access_key
             self.configCredentials[clean_profile_name]['aws_session_token'] = aws_session_token
 
+        # Batch write operations - write both files once instead of multiple times
+        with open(self.awsConfigFile, "w") as config:
+            self.configConfig.write(config)
+
         with open(self.awsCredentialsFile, "w") as credentials:
             self.configCredentials.write(credentials)
-        credentials.close()
 
         return profile_block, clean_profile_name
 
@@ -377,27 +367,26 @@ class Config:
                                      username: str):
 
         role_name = iam_role.split('/')[1]
-
-        run_time_setup = account_number + '-' + role_name + '-' + username
+        run_time_setup = f"{account_number}-{role_name}-{username}"
 
         profile_exists = False
         for section in self.configSAML.sections():
             try:
-                profile_setup = self.configSAML.get(section, 'accountnumber') \
-                                + '-' + self.configSAML.get(section, 'iamrole') \
-                                + '-' + self.configSAML.get(section, 'username')
+                profile_setup = (f"{self.configSAML.get(section, 'accountnumber')}-"
+                                f"{self.configSAML.get(section, 'iamrole')}-"
+                                f"{self.configSAML.get(section, 'username')}")
 
                 if run_time_setup == profile_setup:
                     profile_exists = True
                     smlsts_profile_name = section
                     break
             except configparser.NoOptionError:
-                pass
+                log_stream.debug(f'Section {section} missing expected config keys, skipping')
 
         if profile_exists:
             return False
         else:
-            log_stream.warning('profile ' + profile_name + ' missing, creating')
+            log_stream.warning(f'profile {profile_name} missing, creating')
             try:
                 self.configSAML.add_section(profile_name)
                 self.configSAML[profile_name]['awsregion'] = str(aws_region)
@@ -407,7 +396,6 @@ class Config:
                 self.configSAML[profile_name]['accountnumber'] = str(account_number)
                 with open(self.awsSAMLFile, 'w') as saml_file:
                     self.configSAML.write(saml_file)
-                saml_file.close()
                 return True
             except configparser.DuplicateSectionError:
                 log_stream.info('This profile already exists')
@@ -435,11 +423,10 @@ class Config:
                 self.configSAML['global']['username'] = str(username)
                 self.configSAML['global']['awsRegion'] = str(aws_region)
                 self.configSAML['global']['sessionDuration'] = str(aws_session_duration)
-            except TypeError:
-                pass
+            except TypeError as e:
+                log_stream.warning(f'Error updating global config: {e}')
         else:
             self.configSAML.add_section('global')
 
         with open(self.awsSAMLFile, 'w') as saml_file:
             self.configSAML.write(saml_file)
-        saml_file.close()
