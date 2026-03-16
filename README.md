@@ -315,58 +315,71 @@ Screenshots are saved to `screenshots/{timestamp}/` by default. Use `--screensho
 
 ### Shell Shortcuts
 
-#### Linux (bash)
+Setting up a shell alias lets you run the utility from any directory without activating the virtual environment manually.
 
-Add to `~/.bash_aliases`:
+Both examples below accept a profile name and pass any additional flags through, so you can use them like:
 
-```bash
-getsaml() {
-    saml_home='[REPO CLONE LOCATION]'
-    profilename=$1
-    use_stored_password=$2
-    use_debug=$3
-    if [ $use_debug ]; then
-        python3 ${saml_home}/getCredentials.py --duration 14400 --browser firefox \
-            --profilename ${profilename} --storedpw --region us-east-1 --debug
-    elif [ $use_stored_password ]; then
-        python3 ${saml_home}/getCredentials.py --duration 14400 --browser firefox \
-            --profilename ${profilename} --storedpw --region us-east-1
-    else
-        python3 ${saml_home}/getCredentials.py --profilename ${profilename} \
-            --duration 14400 --browser firefox --region us-east-1
-    fi
-}
 ```
-
-Usage:
-```bash
-getsaml my-profile-name yes        # with stored password
-getsaml my-profile-name yes yes    # with stored password and debug
+getsaml my-profile --storedpw --debug
+getsaml my-profile --storedpw --duration 14400 --region us-west-2
 ```
 
 #### PowerShell 7
 
-Add to your PowerShell profile (`notepad $PROFILE`):
+Create a profile file if you don't have one, then open it:
+
+```powershell
+New-Item -ItemType File -Path $PROFILE -Force
+notepad $PROFILE
+```
+
+Add the function:
 
 ```powershell
 function getsaml {
+    param (
+        [string]$profilename,
+        [Parameter(ValueFromRemainingArguments=$true)]
+        [string[]]$extraArgs
+    )
     Push-Location .
     Set-Location [REPO CLONE LOCATION]
     & "venv\Scripts\activate"
-    python .\getCredentials.py --textmenu --idp okta --browser chrome
-    deactivate
-    Pop-Location
-}
-
-function getsaml-profile($profilename) {
-    Push-Location .
-    Set-Location [REPO CLONE LOCATION]
-    & "venv\Scripts\activate"
-    python getCredentials.py --profilename $profilename --browser chrome --storedpw
+    $cmd = "py getCredentials.py --profilename $profilename " + ($extraArgs -join " ")
+    Invoke-Expression $cmd
     deactivate
     Pop-Location
 }
 ```
+
+Open a new PowerShell window to load the updated profile.
+
+If your organization uses a corporate certificate chain that Python doesn't trust by default, add `pip install pip-system-certs` to the function before the main command. This tells pip and requests to use the OS certificate store.
+
+#### Bash
+
+Add to `~/.bash_aliases` or `~/.bashrc`:
+
+```bash
+getsaml() {
+    local saml_home='[REPO CLONE LOCATION]'
+    local profilename="$1"
+    shift
+    source "${saml_home}/venv/bin/activate"
+    python3 "${saml_home}/getCredentials.py" --profilename "${profilename}" "$@"
+    deactivate
+}
+```
+
+The `"$@"` passes all remaining arguments through, so any flag combination works.
+
+### Tips
+
+- Use `--storedpw` to avoid typing your password every time. The encrypted password is stored in `~/.aws/saml.pass` and expires after 24 hours.
+- If you access many accounts, start with `--textmenu` to build up your `~/.aws/samlsts` and `~/.aws/account-map.json` files. Once populated, switch to `--profilename` for faster repeat access.
+- The `--debug` flag opens a visible browser window so you can watch the login flow. Useful when troubleshooting MFA or page-load issues.
+- On corporate networks with SSL inspection, Python may reject your IdP's certificate. Install `pip-system-certs` (`pip install pip-system-certs`) to use your OS trust store.
+- If the Chrome driver version falls out of sync with your browser, the utility will attempt to download the correct version automatically.
 
 ### Docker
 
