@@ -12,7 +12,7 @@ Log into your IdP and retrieve a SAML assertion for AWS. Use SAML assertion to a
     - [Lazy Configuration](#lazy-configuration)
     - [Quick Start Configuration](#quick-start-configuration)
   - [Virtual Environment](#virtual-environment)
-  - [Dependencies](#dependancies)
+  - [Dependencies](#dependencies)
     - [Using Poetry](#using-poetry--preferred-)
     - [Using pip](#using-pip)
   - [MacOS Users Special Instructions](#macos-users-special-instructions)
@@ -24,7 +24,8 @@ Log into your IdP and retrieve a SAML assertion for AWS. Use SAML assertion to a
   - [Full Configuration mode](#full-configuration-mode)
   - [Text Menu mode](#text-menu-mode)
   - [Docker](#docker)
-  - [Additional Indentity Providers](#additional-indentity-providers)
+  - [Additional Identity Providers](#additional-identity-providers)
+- [Security](#security)
 - [Installing Poetry](#installing-poetry)
 - [Troubleshooting](#troubleshooting)
 - [Known Issues](#known-issues)
@@ -38,12 +39,12 @@ Log into your IdP and retrieve a SAML assertion for AWS. Use SAML assertion to a
 
 ## Getting Started
 
-Clone this repository to your local system. The latest verstion will be tagged ***LATEST*** in GitHub.
+Clone this repository to your local system. The latest version will be tagged ***LATEST*** in GitHub.
 
 ### Prerequisites
 
-- [Python3](https://www.python.org/download/releases/3.0/)
-- Chrome or Filefox drivers specific to your operating system (see [Drivers](#drivers) section) (see [Known Issue](#known-issues) session)
+- [Python 3.12+](https://www.python.org/downloads/)
+- Chrome or Firefox drivers specific to your operating system (see [Drivers](#drivers) section) (see [Known Issues](#known-issues) section)
 - Python libraries from requirements.txt (see [Installing](#installing) section)
 
 ## Quick Start
@@ -107,9 +108,9 @@ powershell Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 venv\Scripts\activate
 ```
 
-#### Dependancies
+#### Dependencies
 
-There are two methods for installing dependencies, using pip to install the dependancies listed in requirements.txt, or using ***poetry*** to manage the python packages for the application
+There are two methods for installing dependencies, using pip to install the dependencies listed in requirements.txt, or using ***poetry*** to manage the python packages for the application
 
 ##### Using Poetry (preferred)
 
@@ -157,7 +158,7 @@ The Chrome driver will attempt to update itself if the driver version is out of 
 
 You may run the utility without first having an ***~/.aws/samlsts*** configuration file. The utility will attempt to create one for you by asking the following questions:
 
-- What is the name of your provider? [PING,OKTA]
+- What is the name of your provider? [OKTA]
 - What is the application login URL for your IdP?
 - What is the HTML title on the login page?
 
@@ -173,8 +174,6 @@ You do not need to define a [global](#global-section) section or [profile](#full
 
 The ***samlsts** configuration file will need to be configured with a minimum of one Identity Provider section. The name of the section must contain the prefix 'Fed' and the name of the IDP in uppercase letters.
 
-***[Fed-PING]***
-
 ***[Fed-OKTA]***
 
 The provider block must also contain the following parameters:
@@ -183,12 +182,12 @@ The provider block must also contain the following parameters:
 - loginTitle - This is the HTML title of the login page.
 
 ```ini
-[Fed-PING]
-loginpage=https://login.company.com/idp/startSSO.ping?PartnerSpId=urn:amazon:webservices
-loginTitle=Sign On
+[Fed-OKTA]
+loginpage=https://login.company.com/app/amazon_aws/exk123456789/sso/saml
+loginTitle=Company - Sign In
 ```
 
-This utility supports PING and OKTA as Identity Providers. Additional identity providers can be configured, see [Additional Identity Providers](#additional-indentity-providers) for details.
+This utility currently supports OKTA as an Identity Provider. Additional identity providers can be configured, see [Additional Identity Providers](#additional-identity-providers) for details.
 
 #### Global Section
 
@@ -218,11 +217,16 @@ python getCredentials.py --profilename PROFILENAME --browser BROWSER
 ```bash
 Other options:
 
-- `--region`: (type: str) the AWS profile name for this session, choices: ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2']
+- `--region`: (type: str) the AWS region for this session, choices: ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2']
 - `--storedpw`: (type: bool) use a stored password
 - `--debug`: (type: bool) show browser during SAML attempt
-- `--duration`: (type: str) desire token length, not to be greater than max length set by AWS administrator
+- `--duration`: (type: str) desired token length, not to be greater than max length set by AWS administrator
 - `--gui`: (type: bool) open the session in a browser as well
+- `--fastpass`: (type: bool) use Okta FastPass for MFA
+- `--encrypted`: (type: bool) generate encrypted credentials string
+- `--show-credentials`: (type: bool) display AWS credentials in plaintext after assume (disabled by default)
+- `--enable-screenshots`: (type: bool) enable screenshot recording during login
+- `--screenshot-dir`: (type: str) directory to save screenshots (default: screenshots/{timestamp})
 
 ```
 
@@ -245,38 +249,41 @@ Other options:
 
 ```
 
-See
-
 ### All runtime options
 
 ***some may not be combined***
 
 ```bash
-    `--username:` (type: bool) username for logging into SAML provider, required for text menu
+    `--username`: (type: str) username for logging into SAML provider, required for text menu
     `--profilename`: (type: str) the AWS profile name for this session
-    `--region`: (type: str) the AWS profile name for this session, choices: ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2']
-    `--idp`: (type: str) Id Provider, choices: ['okta', 'ping']
-    `--duration`: (type: str) desire token length, not to be greater than max length set by AWS administrator
-    `--browser`: (type: str) your browser of choice
+    `--region`: (type: str) the AWS region for this session, choices: ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2']
+    `--idp`: (type: str) Identity Provider, choices: ['okta']
+    `--duration`: (type: str) desired token length, not to be greater than max length set by AWS administrator
+    `--browser`: (type: str) your browser of choice, choices: ['chrome', 'firefox']
     `--storedpw`: (type: bool) use a stored password
     `--gui`: (type: bool) open the session in a browser as well
     `--textmenu`: (type: bool) display text menu of accounts. cannot be used with gui option
     `--debug`: (type: bool) show browser during SAML attempt
+    `--fastpass`: (type: bool) use Okta FastPass for MFA (not available on Linux)
+    `--encrypted`: (type: bool) generate encrypted credentials string
+    `--show-credentials`: (type: bool) display AWS credentials in plaintext after assume (disabled by default)
+    `--enable-screenshots`: (type: bool) enable screenshot recording during login
+    `--screenshot-dir`: (type: str) directory to save screenshots (default: screenshots/{timestamp})
 ```
 
 ### Browser Driver Information
 
 This utility makes use of [Selenium](#prerequisites) to run a headless browser session for login.
 
-The along with adding the aws credentials in the ***~/.aws/credentials*** file, the [gui option](#all-runtime-options) will open a browser with the AWS Console for the profile name selected. This shouldn't be used for long-term operations as the geckodriver browser is not known for speed. This is a quick way to gt a console session while still getting CLI credentials.
+Along with adding the AWS credentials in the ***~/.aws/credentials*** file, the [gui option](#all-runtime-options) will open a browser with the AWS Console for the profile name selected. This shouldn't be used for long-term operations as the geckodriver browser is not known for speed. This is a quick way to get a console session while still getting CLI credentials.
 
-The debug option opens a browser window just before log in allowing the user to track activity then closes once the token is recieved. This a fully interactive browser window.
+The debug option opens a browser window just before log in allowing the user to track activity then closes once the token is received. This is a fully interactive browser window.
 
 ### Shell Shortcuts
 
 #### Linux
 
-a function alias can be added to .bash_aliases that allows the user to quickrun the utility. Alter the alias if you ae using a python virtual environment
+A function alias can be added to .bash_aliases that allows the user to quickly run the utility. Alter the alias if you are using a python virtual environment
 
 ```bash
   getsaml() {
@@ -323,20 +330,20 @@ Add the alias and save the file
 ```powershell
 function getsaml {
     Push-Location .
-    Set-Location C:\Users\ryanm\Projects\aws-idp-saml
+    Set-Location [REPO CLONE LOCATION]
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
     & "venv\Scripts\activate"
-    python .\getCredentials.py --textmenu --idp ping --browser chrome
+    python .\getCredentials.py --textmenu --idp okta --browser chrome
     deactivate
     Pop-Location
 }
 
-function getsaml($profilename) {
+function getsaml-profile($profilename) {
     Push-Location .
-    Set-Location C:\Users\ryanm\Projects\aws-idp-saml
+    Set-Location [REPO CLONE LOCATION]
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
     & "venv\Scripts\activate"
-    python getCredentials.py --profilename companyA-admin --browser chrome --storedpw
+    python getCredentials.py --profilename $profilename --browser chrome --storedpw
     deactivate
     Pop-Location
 }
@@ -360,12 +367,12 @@ Configuration parameters are:
 
 ***example:***
 
-```bash
+```ini
 [cloud1-blackbox]
 awsRegion = us-east-1
 accountNumber = 123456123456
-IAMRole = PING-Architect
-samlProvider = Fed-PING
+IAMRole = OKTA-Architect
+samlProvider = Fed-OKTA
 username=idp.username
 guiName=company-blackbox
 sessionDuration=14400
@@ -454,7 +461,7 @@ This utility should be considered "container friendly". There are example docker
 - most other distributions will install Chromium and reference the browser as Chrome
 - running the utility AS a docker container with docker run is possible, although in order to do so you would need to mount your ~/.aws directory at runtime and this could cause UID/permissions issues. This was tested and determined not to be a high priority use case.
 
-## Additional Indentity Providers
+## Additional Identity Providers
 
 The [original version](https://github.com/OurGiant/aws-ping-saml) of this utility was written to allow users to obtain STS credentials where there was a fixed IdP, PING. A need to accommodate an additional IdP was found and that lead to the development changes which resulted in this iteration of the utility.
 
@@ -486,6 +493,24 @@ Either add the poetry bin location to your path as provided in the installation 
 In Windows the executable is $Env:APPDATA\Python\Scripts\poetry.exe
 In Linux the executable is ~/.local/bin/poetry
 
+## Security
+
+The utility enforces secure file permissions on all sensitive files it creates or manages:
+
+- ***~/.aws/*** directory: 0700 (owner only)
+- Credentials, config, and key files: 0600 (owner read/write only)
+- Password store directory: 0700 (owner only)
+
+The `keygen.py` script supports passphrase-protected private key generation. Run it to create an RSA key pair for credential encryption:
+
+```bash
+python keygen.py
+```
+
+On managed devices where Okta pre-authenticates the user, the utility will automatically detect the MFA screen and skip username/password entry.
+
+Credentials are no longer printed to the console by default. Use `--show-credentials` to explicitly display them when needed.
+
 ## Troubleshooting
 
 If you have issues please create an issue on the project for review. [https://github.com/OurGiant/aws-idp-saml/issues](https://github.com/OurGiant/aws-idp-saml/issues)
@@ -494,7 +519,6 @@ If you have issues please create an issue on the project for review. [https://gi
 
 ## To Do
 
-- check and pull the latest chrome driver
 - better table layout for textmenu
 
 ## System Information
