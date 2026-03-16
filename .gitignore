@@ -13,3 +13,4 @@ config/public_key.pem
 screenshots/**
 screens/**
 failed_login_screenshot*
+uv.lock
