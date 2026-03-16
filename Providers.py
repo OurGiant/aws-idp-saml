@@ -24,7 +24,7 @@ name_locator = By.NAME
 def check_for_mfa_screen(driver, wait, use_okta_fastpass):
     """
     Check if the MFA screen is already displayed (fully managed device scenario).
-    Uses page source inspection to detect stateToken presence.
+    Uses the isMfa flag in Okta's modelDataBag to reliably detect MFA pages.
     
     Args:
         driver: Selenium WebDriver instance
@@ -36,30 +36,28 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
                saml_response is the result if MFA was clicked
     """
     try:
-        # Check if page source contains stateToken variable (present on MFA pages)
-        # This is more reliable than looking for specific buttons
+        # Check if page source contains the isMfa flag in modelDataBag
+        # This is the most reliable indicator from Okta
         page_source = driver.page_source
         
-        # MFA pages have: var stateToken = '02.id.xxxxx';
-        # Login pages also have stateToken, so we need additional checks
-        if "var stateToken = " in page_source:
-            # Additional check: MFA pages don't have username or password fields
-            # but DO have the signin-container populated
-            if "identifier" not in page_source and "password-with-toggle" not in page_source:
-                log_stream.info('MFA screen detected via page source - fully managed device, skipping username and password entry')
-                ScreenshotRecorder.capture(driver, "managed_device_mfa_screen")
+        # Check for isMfa flag in the modelDataBag JSON
+        # The flag appears as either "isMfa":true or encoded as \x22isMfa\x22\x3Atrue
+        if ('"isMfa":true' in page_source or '"isMfa"\\x3Atrue' in page_source or 
+            '\x22isMfa\x22\x3Atrue' in page_source):
+            log_stream.info('MFA screen detected via isMfa flag - fully managed device, skipping username and password entry')
+            ScreenshotRecorder.capture(driver, "managed_device_mfa_screen")
+            
+            # Give the page a moment to fully render the MFA options
+            import time
+            time.sleep(1)
+            
+            # Click the appropriate MFA button
+            if use_okta_fastpass:
+                saml_response = click_okta_fastpass(wait, driver)
+            else:
+                saml_response = click_okta_mfa(wait, driver)
                 
-                # Give the page a moment to fully render the MFA options
-                import time
-                time.sleep(1)
-                
-                # Click the appropriate MFA button
-                if use_okta_fastpass:
-                    saml_response = click_okta_fastpass(wait, driver)
-                else:
-                    saml_response = click_okta_mfa(wait, driver)
-                    
-                return True, saml_response
+            return True, saml_response
         
         # Not on MFA screen
         return False, None
