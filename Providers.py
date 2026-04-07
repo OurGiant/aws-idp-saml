@@ -42,8 +42,7 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
         
         # Check for isMfa flag in the modelDataBag JSON
         # The flag appears as either "isMfa":true or encoded as \x22isMfa\x22\x3Atrue
-        if ('"isMfa":true' in page_source or '"isMfa"\\x3Atrue' in page_source or 
-            '\x22isMfa\x22\x3Atrue' in page_source):
+        if ('\\x22isMfa\\x22\\x3Afalse' in page_source) or ('class="button select-factor link-button"' in page_source):
             log_stream.info('MFA screen detected via isMfa flag - fully managed device, skipping username and password entry')
             ScreenshotRecorder.capture(driver, "managed_device_mfa_screen")
             
