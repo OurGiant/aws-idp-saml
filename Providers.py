@@ -70,7 +70,7 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
 
 def click_okta_mfa(wait, driver):
     """Click the MFA push notification button."""
-    select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[2]/div[2]/div[2]/a'
+    select_push_notification = "//a[@aria-label='Select to get a push notification to the Okta Verify app.']"
     helper = SeleniumHelper(driver, wait)
     
     try:
@@ -86,7 +86,7 @@ def click_okta_mfa(wait, driver):
 
 def click_okta_fastpass(wait, driver):
     """Click the Okta FastPass button."""
-    select_push_notification = '/html/body/div[2]/div[2]/main/div[2]/div/div/div[2]/form/div[2]/div/div[3]/div[2]/div[2]/a'
+    select_push_notification = "//a[@aria-label='Select Okta Verify.']"
     helper = SeleniumHelper(driver, wait)
     
     try:
