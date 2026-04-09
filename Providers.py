@@ -35,13 +35,20 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
         tuple: (is_mfa_screen, saml_response) where is_mfa_screen is bool and 
                saml_response is the result if MFA was clicked
     """
+
+    # wait until the Okta Back to sign in element is present, which indicates the page has loaded enough to check for MFA
+    try:
+        wait.until(ec.presence_of_element_located((link_text_locator, "Back to sign in")))
+    except se.TimeoutException:
+        log_stream.warning('Timeout waiting for page to load while checking for MFA screen')
+        return False, None 
+
     try:
         # Check if page source contains the isMfa flag in modelDataBag
         # This is the most reliable indicator from Okta
         page_source = driver.page_source
         
-        # Check for isMfa flag in the modelDataBag JSON
-        # The flag appears as either "isMfa":true or encoded as \x22isMfa\x22\x3Atrue
+        log_stream.debug('Checking for MFA screen indicators in page source')
         if ('class="button select-factor link-button"' in page_source):
             log_stream.info('MFA screen detected - fully managed device, skipping username and password entry')
             ScreenshotRecorder.capture(driver, "managed_device_mfa_screen")
@@ -157,6 +164,7 @@ class UseIdP:
             ScreenshotRecorder.capture(driver, "okta_login_page")
             
             # Check if we're already on the MFA screen (fully managed device - both username and password pre-authenticated)
+            log_stream.info('Checking for pre-authenticated MFA screen (fully managed device scenario)')
             is_mfa_screen, mfa_response = check_for_mfa_screen(driver, wait, use_okta_fastpass)
             
             if is_mfa_screen:
