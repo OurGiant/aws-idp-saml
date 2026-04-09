@@ -42,8 +42,8 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
         
         # Check for isMfa flag in the modelDataBag JSON
         # The flag appears as either "isMfa":true or encoded as \x22isMfa\x22\x3Atrue
-        if ('\\x22isMfa\\x22\\x3Afalse' in page_source) or ('class="button select-factor link-button"' in page_source):
-            log_stream.info('MFA screen detected via isMfa flag - fully managed device, skipping username and password entry')
+        if ('class="button select-factor link-button"' in page_source):
+            log_stream.info('MFA screen detected - fully managed device, skipping username and password entry')
             ScreenshotRecorder.capture(driver, "managed_device_mfa_screen")
             
             # Give the page a moment to fully render the MFA options
@@ -69,7 +69,11 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
 
 def click_okta_mfa(wait, driver):
     """Click the MFA push notification button."""
-    select_push_notification = "//a[@aria-label='Select to get a push notification to the Okta Verify app.']"
+    # Support both the anchor-based Okta MFA layout and the alternate input-based layout
+    select_push_notification = (
+        "//a[@aria-label='Select to get a push notification to the Okta Verify app.']"
+        " | //input[@class='button button-primary' and @type='submit' and @value='Send push' and @data-type='save']"
+    )
     helper = SeleniumHelper(driver, wait)
     
     try:
@@ -85,7 +89,7 @@ def click_okta_mfa(wait, driver):
 
 def click_okta_fastpass(wait, driver):
     """Click the Okta FastPass button."""
-    select_push_notification = "//a[@aria-label='Select Okta Verify.']"
+    select_push_notification = "//a[@aria-label='Select Okta Verify.']" 
     helper = SeleniumHelper(driver, wait)
     
     try:
