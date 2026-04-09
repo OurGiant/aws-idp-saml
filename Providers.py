@@ -21,7 +21,7 @@ link_text_locator = By.LINK_TEXT
 name_locator = By.NAME
 
 
-def check_for_mfa_screen(driver, wait, use_okta_fastpass):
+def check_for_mfa_screen(driver, wait, short_wait,use_okta_fastpass):
     """
     Check if the MFA screen is already displayed (fully managed device scenario).
     Uses the isMfa flag in Okta's modelDataBag to reliably detect MFA pages.
@@ -35,15 +35,22 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
         tuple: (is_mfa_screen, saml_response) where is_mfa_screen is bool and 
                saml_response is the result if MFA was clicked
     """
+
+    # wait until the Okta Back to sign in element is present, which indicates the page has loaded enough to check for MFA
+    try:
+        short_wait.until(ec.presence_of_element_located((link_text_locator, "Back to sign in")))
+    except se.TimeoutException:
+        log_stream.warning('Timeout waiting for page to load while checking for MFA screen')
+        return False, None 
+
     try:
         # Check if page source contains the isMfa flag in modelDataBag
         # This is the most reliable indicator from Okta
         page_source = driver.page_source
         
-        # Check for isMfa flag in the modelDataBag JSON
-        # The flag appears as either "isMfa":true or encoded as \x22isMfa\x22\x3Atrue
-        if ('\\x22isMfa\\x22\\x3Afalse' in page_source) or ('class="button select-factor link-button"' in page_source):
-            log_stream.info('MFA screen detected via isMfa flag - fully managed device, skipping username and password entry')
+        log_stream.debug('Checking for MFA screen indicators in page source')
+        if ('class="button select-factor link-button"' in page_source):
+            log_stream.info('MFA screen detected - fully managed device, skipping username and password entry')
             ScreenshotRecorder.capture(driver, "managed_device_mfa_screen")
             
             # Give the page a moment to fully render the MFA options
@@ -69,7 +76,11 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
 
 def click_okta_mfa(wait, driver):
     """Click the MFA push notification button."""
-    select_push_notification = "//a[@aria-label='Select to get a push notification to the Okta Verify app.']"
+    # Support both the anchor-based Okta MFA layout and the alternate input-based layout
+    select_push_notification = (
+        "//a[@aria-label='Select to get a push notification to the Okta Verify app.']"
+        " | //input[@class='button button-primary' and @type='submit' and @value='Send push' and @data-type='save']"
+    )
     helper = SeleniumHelper(driver, wait)
     
     try:
@@ -85,7 +96,7 @@ def click_okta_mfa(wait, driver):
 
 def click_okta_fastpass(wait, driver):
     """Click the Okta FastPass button."""
-    select_push_notification = "//a[@aria-label='Select Okta Verify.']"
+    select_push_notification = "//a[@aria-label='Select Okta Verify.']" 
     helper = SeleniumHelper(driver, wait)
     
     try:
@@ -123,7 +134,8 @@ class UseIdP:
         global saml_page_title
         use_dsso = False
         helper = SeleniumHelper(driver, wait)
-        
+        short_wait = WebDriverWait(driver, 3)
+        short_helper = SeleniumHelper(driver, short_wait)        
         # Define XPath selectors for various page elements
         username_next_button = 'button-primary'
         password_next_button = 'button-primary'
@@ -153,7 +165,8 @@ class UseIdP:
             ScreenshotRecorder.capture(driver, "okta_login_page")
             
             # Check if we're already on the MFA screen (fully managed device - both username and password pre-authenticated)
-            is_mfa_screen, mfa_response = check_for_mfa_screen(driver, wait, use_okta_fastpass)
+            log_stream.info('Checking for pre-authenticated MFA screen (fully managed device scenario)')
+            is_mfa_screen, mfa_response = check_for_mfa_screen(driver, wait, short_wait, use_okta_fastpass)
             
             if is_mfa_screen:
                 # Already on MFA screen, credentials were pre-authenticated
@@ -163,8 +176,6 @@ class UseIdP:
                 use_dsso = True  # Reuse this flag to skip password entry
             else:
                 # Not on MFA screen yet, check for password field (username pre-filled on managed devices)
-                short_wait = WebDriverWait(driver, 3)
-                short_helper = SeleniumHelper(driver, short_wait)
                 try:
                     short_helper.wait_for_element((class_name_locator, password_field), "password field")
                     log_stream.info('Password field already visible - username pre-filled, skipping username entry')
