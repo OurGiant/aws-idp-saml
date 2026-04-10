@@ -141,7 +141,6 @@ def click_okta_mfa(wait, driver):
         saml_response = "CouldNotEnterFormData"
         return saml_response
 
-
 def click_okta_fastpass(wait, driver):
     """Click the Okta FastPass button."""
     select_push_notification = "//a[@aria-label='Select Okta Verify.']" 
