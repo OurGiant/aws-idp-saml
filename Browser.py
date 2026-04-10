@@ -197,6 +197,12 @@ def browser_debugging_options(options, user_browser):
     if user_browser == "chrome" or user_browser == "edge":
         options.set_capability("browserVersion", "120")
         options.add_argument("--headless=new")
+        # Suppress internal browser error messages
+        options.add_argument("--log-level=3")  # Only show fatal errors
+        options.add_argument("--disable-usb-keyboard-detect")  # Suppress USB errors
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--disable-backgrounding-occluded-windows")
+        options.add_argument("--disable-renderer-backgrounding")
     elif user_browser == "firefox":
         options.add_argument("--headless")
     # TODO working only for Firefox
@@ -261,6 +267,9 @@ def setup_browser(user_browser, use_debug):
         if use_debug is False:
             browser_options = browser_debugging_options(browser_options, user_browser)
         browser_options.add_argument("--disable-dev-shm-usage")
+        # Suppress browser internal error messages
+        browser_options.add_argument("--log-level=3")
+        browser_options.add_argument("--disable-usb-keyboard-detect")
         driver_executable = verify_drivers('chrome')
         chrome_service = ChromeService(executable_path=driver_executable)
         if operating_system == 'windows':
@@ -290,6 +299,9 @@ def setup_browser(user_browser, use_debug):
         if use_debug is False:
             browser_options = browser_debugging_options(browser_options, user_browser)
         browser_options.add_argument("--disable-dev-shm-usage")
+        # Suppress browser internal error messages
+        browser_options.add_argument("--log-level=3")
+        browser_options.add_argument("--disable-usb-keyboard-detect")
         driver_executable = verify_drivers('edge')
         edge_service = EdgeService(executable_path=driver_executable)
         if operating_system == 'windows':
