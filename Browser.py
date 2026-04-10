@@ -140,6 +140,47 @@ def download_edgedriver():
         return False
 
 
+def download_chromedriver():
+    version, artifacts = get_chrome_latest_version()
+    platform_map = {
+        "windows": "win32",
+        "linux": "linux64", 
+        "macos": "mac64"
+    }
+    platform = platform_map.get(operating_system)
+    if not platform:
+        log_stream.critical('Unsupported operating system for Chrome driver download')
+        return False
+    
+    # Find the correct download URL for this platform
+    download_url = None
+    for artifact in artifacts:
+        if artifact.get('platform') == platform:
+            download_url = artifact.get('url')
+            break
+    
+    if not download_url:
+        log_stream.critical('Unable to find Chrome driver download URL for platform: ' + platform)
+        return False
+    
+    log_stream.info('Downloading Chrome driver from ' + download_url)
+    get_driver = requests.get(download_url)
+    driver_archive = 'drivers/' + constants.chrome_remote_files[operating_system]
+    if get_driver.status_code == 200:
+        with open(driver_archive, 'wb') as driver_file:
+            driver_file.write(get_driver.content)
+        driver_file.close()
+        local_file = 'drivers/' + constants.chrome_local_file[operating_system]
+        try:
+            os.remove(local_file)
+        except FileNotFoundError:
+            pass
+        return Utilities.extract_zip_archive(driver_archive)
+    else:
+        log_stream.critical('Unable to download chromedriver for Chrome')
+        return False
+
+
 def verify_drivers(user_browser):
     drivers = None
     driver_executable = None
