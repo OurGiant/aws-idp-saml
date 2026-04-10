@@ -102,9 +102,9 @@ def get_chrome_latest_version():
 
 
 def get_edge_latest_version():
-    latest_version_url = "https://msedgedriver.azureedge.net/LATEST_STABLE"
+    latest_version_url = "https://msedgedriver.microsoft.com/LATEST_STABLE"
     request_response = requests.get(latest_version_url)
-    latest_edge_driver_version = request_response.content.decode().strip()
+    latest_edge_driver_version = request_response.content.decode('utf-16').strip()
     return latest_edge_driver_version
 
 
@@ -120,7 +120,7 @@ def download_edgedriver():
         log_stream.critical('Unsupported operating system for Edge driver download')
         return False
     
-    edge_driver_download_url = f"https://msedgedriver.azureedge.net/{version}/edgedriver_{platform}.zip"
+    edge_driver_download_url = f"https://msedgedriver.microsoft.com/{version}/edgedriver_{platform}.zip"
     
     log_stream.info('Downloading Edge driver from ' + edge_driver_download_url)
     get_driver = requests.get(edge_driver_download_url)
