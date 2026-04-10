@@ -1,5 +1,7 @@
 # coding=utf-8
 
+import sys
+import signal
 import AWS
 import Config
 import Login
@@ -7,18 +9,84 @@ import Password
 import SAMLSelector
 import Utilities
 from Logging import Logging
+from ScreenshotRecorder import ScreenshotRecorder
 from typing  import Any, Dict, List
 
 
 log_stream = Logging('get_credentials')
 
+
+def signal_handler(sig, frame):
+    """Handle Ctrl+C gracefully."""
+    print('\n\nInterrupted by user. Exiting gracefully...')
+    log_stream.info('Process interrupted by user (Ctrl+C)')
+    sys.exit(0)
+
+
+# Register the signal handler
+signal.signal(signal.SIGINT, signal_handler)
+
 args = Utilities.Arguments()
 config = Config.Config()
 
 
+def _validate_screenshot_dir(screenshot_dir):
+    """
+    Validate screenshot directory path to prevent path traversal attacks.
+    
+    Args:
+        screenshot_dir (str): Directory path from command line
+        
+    Returns:
+        str: Validated directory path, or None if invalid
+    """
+    import os
+    from pathlib import Path
+    
+    if not screenshot_dir:
+        return None
+    
+    # Reject absolute paths
+    if os.path.isabs(screenshot_dir):
+        log_stream.warning(f'Absolute paths not allowed for screenshot directory: {screenshot_dir}')
+        return None
+    
+    # Reject paths with directory traversal attempts
+    if '..' in screenshot_dir or screenshot_dir.startswith('/'):
+        log_stream.warning(f'Path traversal attempt detected: {screenshot_dir}')
+        return None
+    
+    # Normalize the path to prevent tricks
+    normalized = os.path.normpath(screenshot_dir)
+    
+    # Double-check after normalization
+    if normalized.startswith('..') or os.path.isabs(normalized):
+        log_stream.warning(f'Invalid path after normalization: {normalized}')
+        return None
+    
+    # Ensure path is relative to current directory
+    if normalized.startswith('/'):
+        log_stream.warning(f'Path resolves to absolute: {normalized}')
+        return None
+    
+    log_stream.debug(f'Screenshot directory validated: {normalized}')
+    return normalized
+
+
 def main():
     use_okta_fastpass, use_debug, use_gui, arg_browser_type, aws_profile_name, arg_store_password, \
-        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username, arg_encrypted = args.parse_args()
+        arg_session_duration, arg_aws_region, text_menu, use_idp, arg_username, arg_encrypted, \
+        enable_screenshots, screenshot_dir, show_credentials = args.parse_args()
+
+    # Validate screenshot_dir to prevent path traversal attacks
+    if screenshot_dir:
+        screenshot_dir = _validate_screenshot_dir(screenshot_dir)
+        if not screenshot_dir:
+            log_stream.fatal('Invalid screenshot directory path')
+            raise SystemExit(1)
+
+    # Initialize screenshot recorder
+    ScreenshotRecorder.initialize(enable=enable_screenshots, output_dir=screenshot_dir)
 
     principle_arn, role_arn, username, config_aws_region, first_page, config_session_duration, \
         saml_provider_name, idp_login_title, gui_name, config_browser_type, config_store_password, account_number, \
@@ -36,14 +104,16 @@ def main():
 
     pass_key, pass_file = config.return_stored_pass_config()
 
-    if arg_store_password is False and config_store_password is False:
+    log_stream.info('User requested stored passord: ' + str(arg_store_password) + ' | Config allows stored password: ' + str(config_store_password))
+
+    if arg_store_password is True:
+        password: str = Password.retrieve_password(pass_key, pass_file)
+    else:
         password = Password.get_password()
         confirm_store: str = input('Would you like to store this password for future use? [Y/N]')
 
         if confirm_store == 'Y' or confirm_store == 'y':
             Password.store_password(password, pass_key, pass_file)
-    else:
-        password: str = Password.retrieve_password(pass_key, pass_file)
 
     saml_response = Login.browser_login(username,
                                         password,
@@ -103,23 +173,36 @@ def main():
 
         if arg_encrypted:
             encrypted_string = Utilities.encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token)
-            print('\nEncrypted Credentials String:\n' + encrypted_string + '\n')
+            log_stream.info('Encrypted credentials generated (use --encrypted flag to display)')
+            # Only print if explicitly requested and in non-interactive mode
+            if sys.stdout.isatty():
+                print('\nEncrypted Credentials String:\n' + encrypted_string + '\n')
+            else:
+                # In non-interactive mode, only log it
+                log_stream.debug(f'Encrypted credentials: {encrypted_string}')
 
         if config.check_global_in_saml_config():
             configure_globals: str = input('Save the settings from this section for all sessions? [Y/N]')
             configure_globals = configure_globals.upper()
             if configure_globals.startswith('Y'):
                 config.write_global_to_saml_config(browser_type, username, aws_region, aws_session_duration)
-            else:
-                pass
-        else:
-            pass
 
-        print(f'\n{profile_block}\n')
-        if config.write_profile_to_saml_config(clean_profile_name, aws_region, account_number, role_arn,
-                                               saml_provider_name, username):
-            log_stream.info('Saving this profile as ' + clean_profile_name)
-            log_stream.info('You can reference this profile like --profilename ' + clean_profile_name)
+        # Display credentials in plaintext if requested
+        if show_credentials:
+            print('\n' + '='*60)
+            print('AWS CREDENTIALS (PLAINTEXT)')
+            print('='*60)
+            print(f'AWS_ACCESS_KEY_ID={aws_access_id}')
+            print(f'AWS_SECRET_ACCESS_KEY={aws_secret_key}')
+            print(f'AWS_SESSION_TOKEN={aws_session_token}')
+            print('='*60)
+            print(f'Expires: {sts_expires_local_time}')
+            print('='*60 + '\n')
+
+        # Print profile info without sensitive credentials
+        profile_info = f'\nProfile: {clean_profile_name}\nRegion: {aws_region}\nAccount: {account_name}\n'
+        print(profile_info)
+        log_stream.info(f'Profile {clean_profile_name} configured successfully')
 
     else:
         log_stream.fatal("Corrupt or Unavailable STS Response")
@@ -128,4 +211,9 @@ def main():
 
 if __name__ == "__main__":
     log_stream.info('start login process')
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('\n\nInterrupted by user. Exiting gracefully...')
+        log_stream.info('Process interrupted by user (Ctrl+C)')
+        sys.exit(0)
