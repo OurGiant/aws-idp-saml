@@ -16,7 +16,7 @@ __mozilla_driver_url__ = 'https://api.github.com/repos/mozilla/geckodriver/relea
 ##
 __console_log_level__ = logging.INFO
 
-valid_browsers = ['chrome', 'firefox']
+valid_browsers = ['chrome', 'firefox', 'edge']
 valid_idp = ['okta']
 
 firefox_binary_location = {
@@ -35,6 +35,18 @@ chrome_local_file = {
     "windows": "chromedriver.exe",
     "linux": "chromedriver",
     "macos": "chromedriver"
+}
+
+edge_remote_files = {
+    "windows": "edgedriver_win64.zip",
+    "linux": "edgedriver_linux64.zip",
+    "macos": "edgedriver_mac64.zip"
+}
+
+edge_local_file = {
+    "windows": "msedgedriver.exe",
+    "linux": "msedgedriver",
+    "macos": "msedgedriver"
 }
 
 gecko_remote_patterns = {

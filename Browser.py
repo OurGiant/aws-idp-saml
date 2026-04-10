@@ -101,14 +101,70 @@ def get_chrome_latest_version():
     return latest_chrome_driver_version, latest_chrome_driver_artifacts
 
 
+def get_edge_latest_version():
+    latest_version_url = "https://msedgedriver.microsoft.com/LATEST_STABLE"
+    request_response = requests.get(latest_version_url)
+    latest_edge_driver_version = request_response.content.decode('utf-16').strip()
+    return latest_edge_driver_version
+
+
+def download_edgedriver():
+    version = get_edge_latest_version()
+    platform_map = {
+        "windows": "win64",
+        "linux": "linux64",
+        "macos": "mac64"
+    }
+    platform = platform_map.get(operating_system)
+    if not platform:
+        log_stream.critical('Unsupported operating system for Edge driver download')
+        return False
+    
+    edge_driver_download_url = f"https://msedgedriver.microsoft.com/{version}/edgedriver_{platform}.zip"
+    
+    log_stream.info('Downloading Edge driver from ' + edge_driver_download_url)
+    get_driver = requests.get(edge_driver_download_url)
+    driver_archive = 'drivers/' + constants.edge_remote_files[operating_system]
+    if get_driver.status_code == 200:
+        with open(driver_archive, 'wb') as driver_file:
+            driver_file.write(get_driver.content)
+        driver_file.close()
+        local_file = 'drivers/' + constants.edge_local_file[operating_system]
+        try:
+            os.remove(local_file)
+        except FileNotFoundError:
+            pass
+        return Utilities.extract_zip_archive(driver_archive)
+    else:
+        log_stream.critical('Unable to download msedgedriver for Edge')
+        return False
+
+
 def download_chromedriver():
     version, artifacts = get_chrome_latest_version()
-    for key in artifacts:
-        if operating_system_type in key['platform']:
-            chrome_driver_download_url = key['url']
-
-    log_stream.info('Downloading driver from ' + chrome_driver_download_url)
-    get_driver = requests.get(chrome_driver_download_url)
+    platform_map = {
+        "windows": "win32",
+        "linux": "linux64", 
+        "macos": "mac64"
+    }
+    platform = platform_map.get(operating_system)
+    if not platform:
+        log_stream.critical('Unsupported operating system for Chrome driver download')
+        return False
+    
+    # Find the correct download URL for this platform
+    download_url = None
+    for artifact in artifacts:
+        if artifact.get('platform') == platform:
+            download_url = artifact.get('url')
+            break
+    
+    if not download_url:
+        log_stream.critical('Unable to find Chrome driver download URL for platform: ' + platform)
+        return False
+    
+    log_stream.info('Downloading Chrome driver from ' + download_url)
+    get_driver = requests.get(download_url)
     driver_archive = 'drivers/' + constants.chrome_remote_files[operating_system]
     if get_driver.status_code == 200:
         with open(driver_archive, 'wb') as driver_file:
@@ -117,12 +173,6 @@ def download_chromedriver():
         local_file = 'drivers/' + constants.chrome_local_file[operating_system]
         try:
             os.remove(local_file)
-            if operating_system == 'windows':
-                try:
-                    os.remove('drivers\\LICENSE.chromedriver')
-                    os.remove('drivers\\THIRD_PARTY_NOTICES.chromedriver')
-                except FileNotFoundError:
-                    pass
         except FileNotFoundError:
             pass
         return Utilities.extract_zip_archive(driver_archive)
@@ -164,6 +214,8 @@ def verify_drivers(user_browser):
         driver_executable = str(drivers + constants.chrome_local_file[operating_system])
     if user_browser == 'firefox':
         driver_executable = str(drivers + constants.gecko_local_file[operating_system])
+    if user_browser == 'edge':
+        driver_executable = str(drivers + constants.edge_local_file[operating_system])
 
     # if Path(driver).is_file() is False:
     #     log_stream.critical('The driver for browser ' + user_browser + ' cannot be found at ' +
@@ -183,9 +235,15 @@ def verify_drivers(user_browser):
 
 def browser_debugging_options(options, user_browser):
     options.add_argument("--no-sandbox")
-    if user_browser == "chrome":
+    if user_browser == "chrome" or user_browser == "edge":
         options.set_capability("browserVersion", "120")
         options.add_argument("--headless=new")
+        # Suppress internal browser error messages
+        options.add_argument("--log-level=3")  # Only show fatal errors
+        options.add_argument("--disable-usb-keyboard-detect")  # Suppress USB errors
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--disable-backgrounding-occluded-windows")
+        options.add_argument("--disable-renderer-backgrounding")
     elif user_browser == "firefox":
         options.add_argument("--headless")
     # TODO working only for Firefox
@@ -250,6 +308,9 @@ def setup_browser(user_browser, use_debug):
         if use_debug is False:
             browser_options = browser_debugging_options(browser_options, user_browser)
         browser_options.add_argument("--disable-dev-shm-usage")
+        # Suppress browser internal error messages
+        browser_options.add_argument("--log-level=3")
+        browser_options.add_argument("--disable-usb-keyboard-detect")
         driver_executable = verify_drivers('chrome')
         chrome_service = ChromeService(executable_path=driver_executable)
         if operating_system == 'windows':
@@ -272,13 +333,33 @@ def setup_browser(user_browser, use_debug):
                 is_driver_loaded = True
             except se.WebDriverException as missing_browser_driver_error:
                 missing_browser_message(user_browser, missing_browser_driver_error)
+    elif user_browser == 'edge':
+        from selenium.webdriver.edge.options import Options as EdgeOptions
+        from selenium.webdriver.edge.service import Service as EdgeService
+        browser_options = EdgeOptions()
+        if use_debug is False:
+            browser_options = browser_debugging_options(browser_options, user_browser)
+        browser_options.add_argument("--disable-dev-shm-usage")
+        # Suppress browser internal error messages
+        browser_options.add_argument("--log-level=3")
+        browser_options.add_argument("--disable-usb-keyboard-detect")
+        driver_executable = verify_drivers('edge')
+        edge_service = EdgeService(executable_path=driver_executable)
+        if operating_system == 'windows':
+            try:
+                browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            except se.NoSuchAttributeException:
+                log_stream.info('Unable to add Experimental Options')
+        try:
+            driver = webdriver.Edge(service=edge_service, options=browser_options)
+            is_driver_loaded = True
         except se.WebDriverException as e:
             log_stream.critical(str(e))
-            log_stream.info('Attempting to download the latest chromedriver')
-            download_chromedriver()
-            chrome_service = ChromeService(executable_path=driver_executable)
+            log_stream.info('Attempting to download the latest msedgedriver')
+            download_edgedriver()
+            edge_service = EdgeService(executable_path=driver_executable)
             try:
-                driver = webdriver.Chrome(chrome_service, options=browser_options)
+                driver = webdriver.Edge(service=edge_service, options=browser_options)
                 is_driver_loaded = True
             except se.WebDriverException as missing_browser_driver_error:
                 missing_browser_message(user_browser, missing_browser_driver_error)
