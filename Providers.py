@@ -21,7 +21,7 @@ link_text_locator = By.LINK_TEXT
 name_locator = By.NAME
 
 
-def check_for_mfa_screen(driver, wait, short_wait,use_okta_fastpass):
+def check_for_mfa_screen(driver, wait, use_okta_fastpass):
     """
     Check if the MFA screen is already displayed (fully managed device scenario).
     Uses the isMfa flag in Okta's modelDataBag to reliably detect MFA pages.
@@ -35,7 +35,7 @@ def check_for_mfa_screen(driver, wait, short_wait,use_okta_fastpass):
         tuple: (is_mfa_screen, saml_response) where is_mfa_screen is bool and 
                saml_response is the result if MFA was clicked
     """
-
+    short_wait = WebDriverWait(driver, 8)
     # wait until the Okta Back to sign in element is present, which indicates the page has loaded enough to check for MFA
     try:
         short_wait.until(ec.presence_of_element_located((link_text_locator, "Back to sign in")))
@@ -166,7 +166,7 @@ class UseIdP:
             
             # Check if we're already on the MFA screen (fully managed device - both username and password pre-authenticated)
             log_stream.info('Checking for pre-authenticated MFA screen (fully managed device scenario)')
-            is_mfa_screen, mfa_response = check_for_mfa_screen(driver, wait, short_wait, use_okta_fastpass)
+            is_mfa_screen, mfa_response = check_for_mfa_screen(driver, wait, use_okta_fastpass)
             
             if is_mfa_screen:
                 # Already on MFA screen, credentials were pre-authenticated
