@@ -217,7 +217,6 @@ def extract_tgz_archive(archive_file_name):
             log_stream.warning(f'Could not remove archive file: {str(e)}')
     
     return True
-    return True
 
 
 def get_script_exec_path():

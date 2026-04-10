@@ -104,14 +104,16 @@ def main():
 
     pass_key, pass_file = config.return_stored_pass_config()
 
-    if arg_store_password is False and config_store_password is False:
+    log_stream.info('User requested stored passord: ' + str(arg_store_password) + ' | Config allows stored password: ' + str(config_store_password))
+
+    if arg_store_password is True:
+        password: str = Password.retrieve_password(pass_key, pass_file)
+    else:
         password = Password.get_password()
         confirm_store: str = input('Would you like to store this password for future use? [Y/N]')
 
         if confirm_store == 'Y' or confirm_store == 'y':
             Password.store_password(password, pass_key, pass_file)
-    else:
-        password: str = Password.retrieve_password(pass_key, pass_file)
 
     saml_response = Login.browser_login(username,
                                         password,

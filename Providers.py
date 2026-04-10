@@ -73,6 +73,54 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
         # On any error, assume we're not on MFA screen and continue normal flow
         return False, None
 
+def check_for_intermediate_verify_screen(driver, wait):
+
+    short_wait = WebDriverWait(driver, 8)
+    # wait until the Okta Back to sign in element is present, which indicates the page has loaded enough to check for intermediate screen
+    try:
+        short_wait.until(ec.presence_of_element_located((link_text_locator, "Back to sign in")))
+    except se.TimeoutException:
+        log_stream.warning('Timeout waiting for page to load while checking for intermediate screen')
+        return False, None 
+
+    try:
+        page_source = driver.page_source
+        
+        log_stream.debug('Checking for intermediate screen indicators in page source')
+        if ('class="button select-factor link-button"' in page_source):
+            log_stream.info('Intermediate screen detected - select Password option')
+            ScreenshotRecorder.capture(driver, "managed_device_intermediate_screen")
+            
+            # Give the page a moment to fully render the Verify options
+            import time
+            time.sleep(1)
+            
+            # Click the appropriate MFA button
+            click_use_password(wait, driver)
+                
+            return True
+        
+        return False
+        
+    except Exception as e:
+        log_stream.warning(f'Error checking for intermediate screen: {str(e)}')
+        # On any error, assume we're not on intermediate screen and continue normal flow
+        return False, None
+
+def click_use_password(wait, driver):
+    """Click the Okta FastPass button."""
+    select_push_notification = "//a[@aria-label='Select Password.']" 
+    helper = SeleniumHelper(driver, wait)
+    
+    try:
+        log_stream.info('Select Use Password')
+        ScreenshotRecorder.capture(driver, "before_use_password_selection")
+        helper.click_element((xpath_locator, select_push_notification), "Use Password button")
+        ScreenshotRecorder.capture(driver, "after_use_password_selection")
+    except se.ElementClickInterceptedException:
+        ScreenshotRecorder.capture(driver, "use_password_click_intercepted")
+        saml_response = "CouldNotEnterFormData"
+        return saml_response
 
 def click_okta_mfa(wait, driver):
     """Click the MFA push notification button."""
@@ -92,7 +140,6 @@ def click_okta_mfa(wait, driver):
         ScreenshotRecorder.capture(driver, "mfa_click_intercepted")
         saml_response = "CouldNotEnterFormData"
         return saml_response
-
 
 def click_okta_fastpass(wait, driver):
     """Click the Okta FastPass button."""
@@ -146,7 +193,7 @@ class UseIdP:
             log_stream.info('Checking for DSSO')
             ScreenshotRecorder.capture(driver, "dsso_check_start")
             try:
-                helper.wait_for_url_contains(dsso_url)
+                short_helper.wait_for_url_contains(dsso_url)
                 log_stream.info('Follow DSSO Path')
                 ScreenshotRecorder.capture(driver, "dsso_detected")
                 if use_okta_fastpass is True:
@@ -196,6 +243,7 @@ class UseIdP:
 
         if not use_dsso:
             try:
+                check_for_intermediate_verify_screen(driver, wait)
                 # Enter the password and click the "Next" button
                 log_stream.debug('Entering password')  # Don't log the actual password
                 helper.enter_text((class_name_locator, password_field), password, "password field")

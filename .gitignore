@@ -14,3 +14,4 @@ screenshots/**
 screens/**
 failed_login_screenshot*
 uv.lock
+/.run
