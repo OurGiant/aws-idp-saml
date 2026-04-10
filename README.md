@@ -45,7 +45,7 @@ Before installing, gather the following from your IdP administrator:
 You will also need:
 
 - [Python 3.12+](https://www.python.org/downloads/)
-- Chrome or Firefox installed on your system
+- Chrome, Firefox, or Edge installed on your system
 - The corresponding browser driver (the utility will attempt to download this for you)
 
 ## Installation
@@ -94,6 +94,7 @@ The utility will attempt to download the correct driver for your chosen browser 
 
 - Chrome: download from [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)
 - Firefox: download from [geckodriver releases](https://github.com/mozilla/geckodriver/releases)
+- Edge: download from [Microsoft Edge WebDriver](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/)
 
 Place the driver in the `drivers/` directory at the root of the project. On Windows, drivers have the `.exe` extension. On macOS and Linux they do not.
 
@@ -258,7 +259,7 @@ On managed devices where Okta pre-authenticates the user, the utility will autom
 | `--profilename` | str | AWS profile name matching a section in `~/.aws/samlsts` |
 | `--textmenu` | bool | Interactive role selection from SAML response |
 | `--idp` | str | Identity Provider. Choices: `okta` |
-| `--browser` | str | Browser to use. Choices: `chrome`, `firefox` |
+| `--browser` | str | Browser to use. Choices: `chrome`, `firefox`, `edge` |
 | `--username` | str | IdP username (required for text menu if not in config) |
 | `--region` | str | AWS region. Choices: `us-east-1`, `us-east-2`, `us-west-1`, `us-west-2` |
 | `--duration` | str | Session duration in seconds (limited by AWS admin settings) |
