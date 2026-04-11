@@ -27,7 +27,7 @@ class CustomFormatter(logging.Formatter):
     linux_cyan = "\x1B[38;5;14m"
     linux_dark_violet = "\x1B[38:5:128m"
     linux_reset = "\x1B[0m"
-    format = '[%(asctime)s] [] [%(levelname)s] %(message)s'
+    default_format = '[%(asctime)s] [] [%(levelname)s] %(message)s'
 
     windows_grey = ColorManage.RGB(226, 226, 226)
     windows_yellow = ColorManage.RGB(255, 255, 0)
@@ -40,35 +40,39 @@ class CustomFormatter(logging.Formatter):
 
     if is_xterm is True:
         FORMATS = {
-            logging.DEBUG: linux_grey + format + linux_reset,
-            logging.INFO: linux_green + format + linux_reset,
-            logging.WARNING: linux_yellow + format + linux_reset,
-            logging.ERROR: linux_red + format + linux_reset,
-            logging.CRITICAL: linux_bold_red + format + linux_reset,
-            logging.FATAL: linux_dark_violet + format + linux_reset
+            logging.DEBUG: linux_grey + default_format + linux_reset,
+            logging.INFO: linux_green + default_format + linux_reset,
+            logging.WARNING: linux_yellow + default_format + linux_reset,
+            logging.ERROR: linux_red + default_format + linux_reset,
+            logging.CRITICAL: linux_bold_red + default_format + linux_reset,
+            logging.FATAL: linux_dark_violet + default_format + linux_reset
         }
     elif os_info.which_os() == 'windows' and os_info.which_term() is not None:
         FORMATS = {
-            logging.DEBUG: windows_grey + format + windows_reset,
-            logging.INFO: windows_green + format + windows_reset,
-            logging.WARNING: windows_yellow + format + windows_reset,
-            logging.ERROR: windows_orange + format + windows_reset,
-            logging.CRITICAL: windows_red + format + windows_reset,
-            logging.FATAL: windows_red + format + windows_reset
+            logging.DEBUG: windows_grey + default_format + windows_reset,
+            logging.INFO: windows_green + default_format + windows_reset,
+            logging.WARNING: windows_yellow + default_format + windows_reset,
+            logging.ERROR: windows_orange + default_format + windows_reset,
+            logging.CRITICAL: windows_red + default_format + windows_reset,
+            logging.FATAL: windows_red + default_format + windows_reset
         }
     else:
         FORMATS = {
-            logging.DEBUG: format,
-            logging.INFO: format,
-            logging.WARNING: format,
-            logging.ERROR: format,
-            logging.CRITICAL: format,
-            logging.FATAL: format
+            logging.DEBUG: default_format,
+            logging.INFO: default_format,
+            logging.WARNING: default_format,
+            logging.ERROR: default_format,
+            logging.CRITICAL: default_format,
+            logging.FATAL: default_format
         }
 
+    # Cache Formatter objects for each log level
+    FORMATTER_CACHE = {level: logging.Formatter(pattern) for level, pattern in FORMATS.items()}
+
     def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
+        formatter = self.FORMATTER_CACHE.get(record.levelno)
+        if formatter is None:
+            formatter = logging.Formatter(self.default_format)
         return formatter.format(record)
 
 

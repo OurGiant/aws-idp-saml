@@ -20,30 +20,45 @@ saml_page_title = "Amazon Web Services Sign-In"
 
 
 def get_saml_response(driver):
-    design_a_count = 0
-    while len(driver.find_elements(By.XPATH, '//*[@id="saml_form"]/input[@name="SAMLResponse"]')) < 1 or design_a_count < 10:
-        print('.', end='')
-        design_a_count += 1
+    wait = WebDriverWait(driver, constants.__timeout__)
 
-    if len(driver.find_elements(By.XPATH, '//*[@id="saml_form"]/input[@name="SAMLResponse"]')) > 0:
+    # Try design A first
+    try:
+        saml_element = wait.until(ec.presence_of_element_located((By.XPATH, '//*[@id="saml_form"]/input[@name="SAMLResponse"]')))
         log_stream.info("found login design A")
-        saml_response_completed_login = driver.find_elements(By.XPATH, '//*[@id="saml_form"]/input[@name="SAMLResponse"]')
-        saml_response = saml_response_completed_login[0].get_attribute("value")
+        saml_response = saml_element.get_attribute("value")
         design = "A"
         return saml_response, design
+    except se.TimeoutException:
+        pass
 
-    design_b_count = 0
-    while len(driver.find_elements(By.XPATH, '//meta[@name="data"]')) < 1 or design_b_count < 10:
-        print('.', end='')
-        design_b_count += 1
-
-    if len(driver.find_elements(By.XPATH, '//meta[@name="data"]')) > 0:
+    # If design A not found, try design B
+    try:
+        aws_signin_page_data = wait.until(ec.presence_of_element_located((By.XPATH, '//meta[@name="data"]')))
         log_stream.info("found login design B")
-        aws_signin_page_data = driver.find_elements(By.XPATH, '//meta[@name="data"]')
-        saml_response = json.loads(base64.b64decode((aws_signin_page_data[0].get_attribute("content"))).decode('utf-8'))['SAMLResponse']
+        
+        # Parse JSON with proper error handling
+        try:
+            saml_data = json.loads(base64.b64decode((aws_signin_page_data.get_attribute("content"))).decode('utf-8'))
+            
+            # Validate response structure
+            if 'SAMLResponse' not in saml_data:
+                log_stream.fatal('Invalid SAML response format: missing SAMLResponse field')
+                return None, None
+            
+            saml_response = saml_data['SAMLResponse']
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            log_stream.critical(f'Failed to parse SAML response JSON: {str(e)}')
+            log_stream.debug(f'Attempted to parse content type: {type(aws_signin_page_data.get_attribute("content"))}')
+            return None, None
+        except UnicodeDecodeError as e:
+            log_stream.critical(f'SAML response content is not valid UTF-8: {str(e)}')
+            return None, None
+        
         design = "B"
-
         return saml_response, design
+    except se.TimeoutException:
+        return None, None
 
 
 def browser_login(username, password, first_page, use_debug, use_gui, browser, saml_provider_name,
@@ -79,11 +94,12 @@ def browser_login(username, password, first_page, use_debug, use_gui, browser, s
             completed_login = False
             return saml_response
 
-        time.sleep(2)
-
         if completed_login is True:
             log_stream.info('Waiting for SAML Response.')
             saml_response, design = get_saml_response(driver)
+            if saml_response is None:
+                saml_response = "SAMLResponseTimeout"
+                return saml_response
             if use_gui is not True:
                 driver.close()
             else:

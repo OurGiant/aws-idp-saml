@@ -40,15 +40,10 @@ def missing_config_file_message():
 
 def validate_aws_cred_format(aws_access_id, aws_secret_key, aws_session_token):
     valid_key_pattern = re.compile(r'^[a-zA-Z0-9]{16,128}$')
-    valid_secret_pattern = re.compile(r'^[a-zA-Z0-9\/+]{30,50}$')
-    valid_token_pattern = re.compile(r'^[a-zA-Z0-9\/+]{400,500}$')
+    valid_secret_pattern = re.compile(r'^[a-zA-Z0-9\/+]{30,100}$')
+    valid_token_pattern = re.compile(r'^[a-zA-Z0-9\/+\=]{100,2048}$')
 
-    if not (bool(valid_key_pattern.match(aws_access_id)) or bool(valid_secret_pattern.match(aws_secret_key)) or bool(
-            valid_token_pattern.match(aws_session_token))
-    ):
-        return False
-    else:
-        return True
+    return bool(valid_key_pattern.match(aws_access_id)) and bool(valid_secret_pattern.match(aws_secret_key)) and bool(valid_token_pattern.match(aws_session_token))
 
 
 def get_aws_variables(conf_region, conf_duration, arg_aws_region, arg_session_duration) -> Tuple[str, int]:
@@ -137,23 +132,19 @@ class Config:
     def get_saml_info(self):
         idp_name = "default"
         while idp_name not in constants.valid_idp:
-            idp_name: str = input('What is the name of your provider? [' + ', '.join(constants.valid_idp) + '] ').lower()
+            idp_name = input(f'What is the name of your provider? [{", ".join(constants.valid_idp)}] ').lower()
         log_stream.info('Information may be obtained from your IdP admin')
         login_page: str = input('What is the application login URL for your IdP? ')
         login_title: str = input('What is the HTML title on the login page? ')
         with open(self.awsSAMLFile, 'w+') as saml_config_file:
-            saml_config_file.write(
-                "[Fed-" + idp_name.upper() + "]\nloginpage=" + login_page + "\nloginTitle=" + login_title + "\n\n"
-            )
+            saml_config_file.write(f"[Fed-{idp_name.upper()}]\nloginpage={login_page}\nloginTitle={login_title}\n\n")
         return idp_name
 
     def create_aws_config(self):
         with open(self.awsConfigFile, 'w') as config:
             for section in self.configSAML._sections:
                 if section.startswith('Fed-', 0, 4) is False:
-                    config.write(
-                        "[" + section + "]\nregion=" + self.configSAML._sections[section]['awsregion'] + "\n\n")
-        config.close()
+                    config.write(f"[{section}]\nregion={self.configSAML._sections[section]['awsregion']}\n\n")
 
     def return_stored_pass_config(self):
         return self.PassKey, self.PassFile
@@ -164,7 +155,6 @@ class Config:
     def create_new_map_file(self):
         with open(self.AccountMap, 'w') as mapfh:
             mapfh.write('[]')
-        mapfh.close()
 
     def check_for_map_file(self):
         if not Path(self.AccountMap).is_file():
@@ -174,28 +164,41 @@ class Config:
     def write_account_to_map_file(self, account_name, account_number):
         with open(self.AccountMap, 'r') as mapfile:
             account_map: list = json.loads(mapfile.read())
-        mapfile.close()
 
         account_map_entry = {"name": account_name, "number": account_number}
-        if not account_map_entry in account_map:
+        if account_map_entry not in account_map:
             account_map.append(account_map_entry)
 
         with open(self.AccountMap, 'w') as mapfile:
             mapfile.write(json.dumps(account_map))
-        mapfile.close()
 
     def read_map_file(self):
         account_map_file = self.return_account_map_file()
         try:
             with open(account_map_file, 'r') as mapfile:
-                account_map: list = json.loads(mapfile.read())
-            mapfile.close()
-            return account_map
+                account_map_data = json.loads(mapfile.read())
+            
+            # Validate that data is a list
+            if not isinstance(account_map_data, list):
+                log_stream.warning(f'Account map file has invalid format: expected list, got {type(account_map_data).__name__}')
+                log_stream.info('Recreating account map file with valid format')
+                self.create_new_map_file()
+                return []
+            
+            return account_map_data
         except FileNotFoundError:
             log_stream.warning('No map file found, using account numbers in display')
             log_stream.info('The accounts map configuration can be provided to you by your AWS team')
             self.check_for_map_file()
-            self.read_map_file()
+            return []
+        except json.JSONDecodeError as e:
+            log_stream.warning(f'Account map file is corrupted (invalid JSON): {str(e)}')
+            log_stream.info('Recreating account map file with valid format')
+            self.create_new_map_file()
+            return []
+        except (IOError, OSError) as e:
+            log_stream.warning(f'Unable to read account map file: {str(e)}')
+            return []
 
     def _get_config_value(self, section: str, key: str, default=None):
         """
@@ -356,9 +359,7 @@ class Config:
         else:
             profile_name = aws_profile_name
 
-        profile_block = "[" + profile_name + "]\n" "region = " + aws_region + "\naws_access_key_id =  " + \
-                        access_key_id + "\naws_secret_access_key =  " + secret_access_key + "\naws_session_token =  " \
-                        + aws_session_token
+        profile_block = f"[{profile_name}]\nregion = {aws_region}\naws_access_key_id = {access_key_id}\naws_secret_access_key = {secret_access_key}\naws_session_token = {aws_session_token}"
 
         return profile_name, profile_block
 

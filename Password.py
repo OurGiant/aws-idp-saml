@@ -137,7 +137,6 @@ def generate_pass_store_key(pass_key):
     # Write the key to the key file
     with open(pass_key, "wb") as key_file:
         key_file.write(key)
-    key_file.close()
 
     # Return the generated key
     return key
@@ -158,8 +157,22 @@ def store_password(password, pass_key, pass_file):
     # Check if the key file is writeable
     check_store_perms(pass_key)
 
+    # Try to reuse existing key if it exists and is valid
+    key = None
+    if os.path.exists(pass_key):
+        try:
+            with open(pass_key, "rb") as key_file:
+                existing_key = key_file.read()
+            # Test if the key is valid by attempting to create a Fernet instance
+            Fernet(existing_key)
+            key = existing_key
+            log_stream.debug('Reusing existing encryption key')
+        except (FileNotFoundError, ValueError, InvalidToken):
+            log_stream.debug('Existing key is invalid, generating new key')
+    
     # Generate or retrieve the key from the key file
-    key = generate_pass_store_key(pass_key)
+    if key is None:
+        key = generate_pass_store_key(pass_key)
     
     # Set strict permissions on key file (owner read/write only)
     check_file_perms(pass_key)
@@ -198,11 +211,9 @@ def retrieve_password(pass_key, pass_file):
         check_password_status(pass_file, pass_key)
         with open(pass_key, "rb") as pass_key_handle:
             key = pass_key_handle.read()
-        pass_key_handle.close()
 
         with open(pass_file, "rb") as pass_file_handle:
             encrypted_pass = pass_file_handle.read()
-        pass_file_handle.close()
 
     except FileNotFoundError as no_password_file_error:
         log_stream.warning('No password found. A new pass store will be created')

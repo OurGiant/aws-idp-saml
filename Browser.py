@@ -37,9 +37,9 @@ def gecko_from_snap():
 
 
 def missing_browser_message(user_browser, error):
-    message = 'There is something wrong with the driver installed for ' + user_browser + '.'
-    message = message + 'Please refer to the documentation in the README on how to download and '
-    message = message + 'install the correct driver for your operating system ' + operating_system
+    message = f'There is something wrong with the driver installed for {user_browser}.'
+    message += 'Please refer to the documentation in the README on how to download and '
+    message += 'install the correct driver for your operating system ' + operating_system
     log_stream.critical(message)
     log_stream.critical(str(error))
 
@@ -49,7 +49,7 @@ def get_gecko_latest_version():
     latest_version_url = constants.__mozilla_driver_url__
     request_response = requests.get(latest_version_url)
     gekco_releases = json.loads(request_response.content.decode())
-    os_download_patterns = re.compile('.*' + constants.gecko_remote_patterns[operating_system] + '$')
+    os_download_patterns = re.compile(f'.*{constants.gecko_remote_patterns[operating_system]}$')
     for asset in gekco_releases[0]['assets']:
         if os_download_patterns.match(asset['name']):
             gecko_download_url = asset['browser_download_url']
@@ -191,12 +191,12 @@ def verify_drivers(user_browser):
 
     driver_files = None
     if operating_system == 'linux' or operating_system == 'macos':
-        os.environ['PATH'] += ":" + script_execute_path + '/drivers'
-        drivers = script_execute_path + '/drivers/'
+        os.environ['PATH'] += f":{script_execute_path}/drivers"
+        drivers = f"{script_execute_path}/drivers/"
 
     elif operating_system == 'windows':
-        os.environ['PATH'] += ";" + script_execute_path + '\\drivers\\'
-        drivers = script_execute_path + '\\drivers\\'
+        os.environ['PATH'] += f";{script_execute_path}\\drivers\\"
+        drivers = f"{script_execute_path}\\drivers\\"
     else:
         log_stream.fatal('Unknown OS type ' + sys.platform)
         raise SystemExit(1)
@@ -217,20 +217,15 @@ def verify_drivers(user_browser):
     if user_browser == 'edge':
         driver_executable = str(drivers + constants.edge_local_file[operating_system])
 
-    # if Path(driver).is_file() is False:
-    #     log_stream.critical('The driver for browser ' + user_browser + ' cannot be found at ' +
-    #                         str(drivers + driver_files[user_browser]))
-    #     log_stream.info('Attempting to download the driver for ' + user_browser)
-    #     if user_browser == 'firefox':
-    #         get_browser_driver = download_gecko_driver()
-    #     if user_browser == 'chrome':
-    #         get_browser_driver = download_chromedriver()
-    #
-    #     if get_browser_driver is False:
-    #         log_stream.critical(
-    #             'Please download the driver for ' + user_browser + ' manually using the instructions in the README')
-    #         raise SystemExit(1)
     return driver_executable
+
+
+def check_driver_compatibility(driver_path):
+    """Check if the driver exists and is executable."""
+    if Path(driver_path).is_file():
+        # Basic check - file exists and is executable
+        return os.access(driver_path, os.X_OK)
+    return False
 
 
 def browser_debugging_options(options, user_browser):
@@ -294,7 +289,10 @@ def setup_browser(user_browser, use_debug):
             is_driver_loaded = True
         except se.WebDriverException as e:
             log_stream.critical(str(e))
-            download_gecko_driver()
+            # Only download if driver doesn't exist or isn't compatible
+            if not check_driver_compatibility(driver_executable):
+                log_stream.info('Attempting to download the latest geckodriver')
+                download_gecko_driver()
             firefox_service = FirefoxService(executable_path=driver_executable)
             try:
                 driver = webdriver.Firefox(service=firefox_service, options=browser_options)
@@ -325,8 +323,10 @@ def setup_browser(user_browser, use_debug):
             is_driver_loaded = True
         except se.WebDriverException as e:
             log_stream.critical(str(e))
-            log_stream.info('Attempting to download the latest chromedriver')
-            download_chromedriver()
+            # Only download if driver doesn't exist or isn't compatible
+            if not check_driver_compatibility(driver_executable):
+                log_stream.info('Attempting to download the latest chromedriver')
+                download_chromedriver()
             chrome_service = ChromeService(executable_path=driver_executable)
             try:
                 driver = webdriver.Chrome(service=chrome_service, options=browser_options)
@@ -355,8 +355,10 @@ def setup_browser(user_browser, use_debug):
             is_driver_loaded = True
         except se.WebDriverException as e:
             log_stream.critical(str(e))
-            log_stream.info('Attempting to download the latest msedgedriver')
-            download_edgedriver()
+            # Only download if driver doesn't exist or isn't compatible
+            if not check_driver_compatibility(driver_executable):
+                log_stream.info('Attempting to download the latest msedgedriver')
+                download_edgedriver()
             edge_service = EdgeService(executable_path=driver_executable)
             try:
                 driver = webdriver.Edge(service=edge_service, options=browser_options)

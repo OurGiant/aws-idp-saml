@@ -97,8 +97,8 @@ class Arguments:
             get_idp = None
             log_stream.info('IdP must be provided to use Text Menu')
             while get_idp not in constants.valid_idp:
-                get_idp = input('Please specify an to use [' + ','.join(constants.valid_idp) + '] ')
-            self.use_idp = "Fed-" + str(get_idp).upper()
+                get_idp = input(f'Please specify an IdP to use [{",".join(constants.valid_idp)}] ')
+            self.use_idp = f"Fed-{str(get_idp).upper()}"
         else:
             self.use_idp = "Fed-" + str(self.args.idp).upper()
 
@@ -138,15 +138,14 @@ class Arguments:
 
 def extract_zip_archive(archive_file_name):
     try:
-        log_stream.info('unzip driver archive ' + archive_file_name)
+        log_stream.info(f'unzip driver archive {archive_file_name}')
         with zipfile.ZipFile(archive_file_name, 'r') as zip_ref:
             archive_root = zip_ref.namelist()[0].split('/')[0]
             zip_ref.extractall(path='drivers/')
-        zip_ref.close()
-        if len(zip_ref.namelist()[0].split('/')) > 1:
-            for file in os.listdir('drivers/'+archive_root+'/'):
-                shutil.move('drivers/'+archive_root+'/'+file, 'drivers/')
-            shutil.rmtree('drivers/'+archive_root+'/')
+            if len(zip_ref.namelist()[0].split('/')) > 1:
+                for file in os.listdir(f'drivers/{archive_root}/'):
+                    shutil.move(f'drivers/{archive_root}/{file}', 'drivers/')
+                shutil.rmtree(f'drivers/{archive_root}/')
     except zipfile.BadZipfile as e:
         log_stream.critical(str(e))
         return False
@@ -229,12 +228,10 @@ def check_if_container():
     if container_file.is_file():
         log_stream.info('Run as container')
         try:
+            with open('/var/run/systemd/container', 'r') as handle:
+                sys_container = handle.read()
             with open('.is_container', 'w') as fh:
-                with open('/var/run/systemd/container') as handle:
-                    sys_container = handle.readlines()
-                handle.close()
                 fh.write(sys_container)
-            fh.close()
         except OSError:
             log_stream.fatal('Unable to write container flag file')
             raise SystemExit(1)
@@ -250,8 +247,7 @@ def get_user_name():
 def get_browser_type():
     *nonsense, browser = config.read_global_settings()
     while browser not in constants.valid_browsers:
-        browser = input(
-            'Please specify a browser to use [' + ','.join(constants.valid_browsers) + '] ')
+        browser = input(f'Please specify a browser to use [{",".join(constants.valid_browsers)}] ')
     return browser
 
 
@@ -286,7 +282,7 @@ def encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token):
         log_stream.fatal('Loaded public key is not an RSA public key. Encryption is only supported with RSA keys.')
         return "Encryption Error"
     
-    credentials_string = aws_access_id + '|' + aws_secret_key + '|' + aws_session_token
+    credentials_string = f"{aws_access_id}|{aws_secret_key}|{aws_session_token}"
     
     try:
         # Generate a random AES key (256-bit)
@@ -318,9 +314,8 @@ def encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token):
         )
         
         # Combine: encrypted_aes_key:iv:encrypted_credentials (all hex encoded)
-        result = encrypted_aes_key.hex() + ':' + iv.hex() + ':' + encrypted_credentials.hex()
-        return result
+        return f"{encrypted_aes_key.hex()}:{iv.hex()}:{encrypted_credentials.hex()}"
         
     except Exception as e:
-        log_stream.fatal('Error encrypting credentials: ' + str(e))
+        log_stream.fatal(f'Error encrypting credentials: {e}')
         return "Encryption Error"

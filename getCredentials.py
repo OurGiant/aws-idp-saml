@@ -104,7 +104,7 @@ def main():
 
     pass_key, pass_file = config.return_stored_pass_config()
 
-    log_stream.info('User requested stored passord: ' + str(arg_store_password) + ' | Config allows stored password: ' + str(config_store_password))
+    log_stream.info(f'User requested stored password: {arg_store_password} | Config allows stored password: {config_store_password}')
 
     if arg_store_password is True:
         password: str = Password.retrieve_password(pass_key, pass_file)
@@ -168,15 +168,15 @@ def main():
         aws_user_id = AWS.STS.get_aws_caller_id(clean_profile_name)
 
         sts_expires_local_time: str = sts_expiration.strftime("%c")
-        log_stream.info('Token issued for ' + str(aws_user_id) + ' in account ' + str(account_name))
-        log_stream.info('Token will expire at ' + sts_expires_local_time)
+        log_stream.info(f'Token issued for {aws_user_id} in account {account_name}')
+        log_stream.info(f'Token will expire at {sts_expires_local_time}')
 
         if arg_encrypted:
             encrypted_string = Utilities.encrypt_credentials(aws_access_id, aws_secret_key, aws_session_token)
             log_stream.info('Encrypted credentials generated (use --encrypted flag to display)')
             # Only print if explicitly requested and in non-interactive mode
             if sys.stdout.isatty():
-                print('\nEncrypted Credentials String:\n' + encrypted_string + '\n')
+                print(f'\nEncrypted Credentials String:\n{encrypted_string}\n')
             else:
                 # In non-interactive mode, only log it
                 log_stream.debug(f'Encrypted credentials: {encrypted_string}')
@@ -187,8 +187,11 @@ def main():
             if configure_globals.startswith('Y'):
                 config.write_global_to_saml_config(browser_type, username, aws_region, aws_session_duration)
 
-        # Display credentials in plaintext if requested
+        # Display credentials in plaintext if requested (legacy CI/CD pipelines)
         if show_credentials:
+            log_stream.warning('⚠️  WARNING: Displaying plaintext credentials - they will appear in shell history')
+            log_stream.info('For modern CI/CD, consider using AWS SSO or environment variable files with restricted permissions')
+            
             print('\n' + '='*60)
             print('AWS CREDENTIALS (PLAINTEXT)')
             print('='*60)
@@ -197,6 +200,9 @@ def main():
             print(f'AWS_SESSION_TOKEN={aws_session_token}')
             print('='*60)
             print(f'Expires: {sts_expires_local_time}')
+            print('='*60)
+            print('\n💡 TIP: Use `eval` with output file to avoid shell history:')
+            print('   aws-idp-saml ... --show-credentials > /tmp/.aws_creds.txt && source /tmp/.aws_creds.txt && rm /tmp/.aws_creds.txt')
             print('='*60 + '\n')
 
         # Print profile info without sensitive credentials

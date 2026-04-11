@@ -1,7 +1,9 @@
 import logging
 
+import os
+
 __version__ = '1.0.15'
-__timeout__ = 45
+__timeout__ = int(os.getenv('AWS_SAML_TIMEOUT', 45))  # Configurable timeout in seconds
 __snap_install_dir__ = '/snap/firefox/current/usr/lib/firefox'
 __mozilla_driver_url__ = 'https://api.github.com/repos/mozilla/geckodriver/releases'
 
