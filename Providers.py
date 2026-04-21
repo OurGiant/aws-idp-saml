@@ -35,7 +35,7 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
         tuple: (is_mfa_screen, saml_response) where is_mfa_screen is bool and 
                saml_response is the result if MFA was clicked
     """
-    short_wait = WebDriverWait(driver, 8)
+    short_wait = WebDriverWait(driver, 20)
     # wait until the Okta Back to sign in element is present, which indicates the page has loaded enough to check for MFA
     try:
         short_wait.until(ec.presence_of_element_located((link_text_locator, "Back to sign in")))
