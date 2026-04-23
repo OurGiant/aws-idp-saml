@@ -1,0 +1,5 @@
+# Snyk ignore file for false positives
+# This finding is a false positive - the IV is properly generated using SecureRandom
+ignore:
+  f3fc4e9e-71cd-40b5-9ce1-79a010c96677:
+    - "src/main/java/com/aws/saml/PasswordManager.java"

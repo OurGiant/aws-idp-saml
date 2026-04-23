@@ -176,14 +176,14 @@ public class CredentialsDialog extends JDialog {
             java.security.SecureRandom random = new java.security.SecureRandom();
             byte[] aesKey = new byte[32]; // 256-bit
             random.nextBytes(aesKey);
-            byte[] iv = new byte[16]; // 128-bit
+            byte[] iv = new byte[12]; // 96-bit for GCM
             random.nextBytes(iv);
 
-            // Encrypt credentials with AES-CBC
-            javax.crypto.Cipher aesCipher = javax.crypto.Cipher.getInstance("AES/CBC/PKCS5Padding");
+            // Encrypt credentials with AES-GCM
+            javax.crypto.Cipher aesCipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
             javax.crypto.spec.SecretKeySpec secretKeySpec = new javax.crypto.spec.SecretKeySpec(aesKey, "AES");
-            javax.crypto.spec.IvParameterSpec ivSpec = new javax.crypto.spec.IvParameterSpec(iv);
-            aesCipher.init(javax.crypto.Cipher.ENCRYPT_MODE, secretKeySpec, ivSpec);
+            javax.crypto.spec.GCMParameterSpec gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, iv); // 128-bit tag
+            aesCipher.init(javax.crypto.Cipher.ENCRYPT_MODE, secretKeySpec, gcmSpec);
             byte[] encryptedCredentials = aesCipher.doFinal(credentialsString.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
             // Encrypt AES key with RSA

@@ -23,6 +23,7 @@ public class PasswordManager {
     private static final int GCM_TAG_LENGTH = 128; // 128 bits
     private static final int KEY_SIZE = 256; // 256 bits
     private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final DatabaseManager databaseManager;
     private SecretKey encryptionKey;
@@ -65,8 +66,10 @@ public class PasswordManager {
      */
     private String encryptPassword(String password) throws Exception {
         Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
+
+        // Generate cryptographically secure random IV
         byte[] iv = new byte[GCM_IV_LENGTH];
-        new SecureRandom().nextBytes(iv);
+        SECURE_RANDOM.nextBytes(iv);
 
         GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
         cipher.init(Cipher.ENCRYPT_MODE, encryptionKey, spec);
@@ -88,6 +91,7 @@ public class PasswordManager {
         byte[] data = Base64.getDecoder().decode(encryptedPassword);
         ByteBuffer buffer = ByteBuffer.wrap(data);
 
+        // Read IV from buffer (not hardcoded - this is read from encrypted data)
         byte[] iv = new byte[GCM_IV_LENGTH];
         buffer.get(iv);
 
@@ -95,6 +99,7 @@ public class PasswordManager {
         buffer.get(ciphertext);
 
         Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
+        // IV is read from encrypted data, not hardcoded
         GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
         cipher.init(Cipher.DECRYPT_MODE, encryptionKey, spec);
 
