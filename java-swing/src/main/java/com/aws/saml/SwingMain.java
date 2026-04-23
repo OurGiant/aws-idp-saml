@@ -42,12 +42,14 @@ public class SwingMain extends JFrame {
     private CredentialManager credentialManager;
     private TokenStateManager tokenStateManager;
     private DatabaseManager databaseManager;
+    private PasswordManager passwordManager;
 
     public SwingMain() {
         configManager = new ConfigManager();
         credentialManager = new CredentialManager();
         tokenStateManager = new TokenStateManager();
         databaseManager = new DatabaseManager();
+        passwordManager = new PasswordManager(databaseManager);
 
         initializeUI();
         loadProfiles();
@@ -346,7 +348,7 @@ public class SwingMain extends JFrame {
     }
 
     private void showConfigurationDialog() {
-        ConfigurationDialog dialog = new ConfigurationDialog(this, databaseManager);
+        ConfigurationDialog dialog = new ConfigurationDialog(this, databaseManager, passwordManager);
         dialog.setVisible(true);
     }
 

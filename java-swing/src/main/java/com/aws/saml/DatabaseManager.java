@@ -134,6 +134,15 @@ public class DatabaseManager {
         return value != null ? Integer.parseInt(value) : 28800; // Default 8 hours
     }
 
+    public int getPasswordExpirationMinutes() {
+        String value = getConfig("password_expiration_minutes");
+        return value != null ? Integer.parseInt(value) : 1440; // Default 24 hours (1440 minutes)
+    }
+
+    public void setPasswordExpirationMinutes(int minutes) {
+        setConfig("password_expiration_minutes", String.valueOf(minutes));
+    }
+
     // Token state methods
     public void updateExpiration(String profileName, Instant expiration) {
         if (profileName == null || expiration == null) {

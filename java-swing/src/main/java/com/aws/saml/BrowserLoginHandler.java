@@ -19,11 +19,13 @@ public class BrowserLoginHandler {
     private final WebDriver driver;
     private final WebDriverWait wait;
     private final boolean useOktaFastPass;
+    private final PasswordManager passwordManager;
 
-    public BrowserLoginHandler(WebDriver driver, boolean useOktaFastPass) {
+    public BrowserLoginHandler(WebDriver driver, boolean useOktaFastPass, PasswordManager passwordManager) {
         this.driver = driver;
         this.wait = new WebDriverWait(driver, Duration.ofSeconds(30));
         this.useOktaFastPass = useOktaFastPass;
+        this.passwordManager = passwordManager;
     }
 
     /**
@@ -152,9 +154,19 @@ public class BrowserLoginHandler {
     }
 
     /**
-     * Prompt user for password using Swing dialog
+     * Prompt user for password using Swing dialog or retrieve from storage
      */
     private String promptForPassword() {
+        // Try to use stored password if enabled
+        if (passwordManager.isPasswordStorageEnabled()) {
+            String storedPassword = passwordManager.retrievePassword();
+            if (storedPassword != null && !storedPassword.isEmpty()) {
+                logger.info("Using stored Okta password");
+                return storedPassword;
+            }
+        }
+
+        // No stored password or storage disabled, prompt user
         JPasswordField passwordField = new JPasswordField();
         passwordField.setEchoChar('*');
 
@@ -172,7 +184,19 @@ public class BrowserLoginHandler {
         );
 
         if (option == JOptionPane.OK_OPTION) {
-            return new String(passwordField.getPassword());
+            String password = new String(passwordField.getPassword());
+
+            // Store password if storage is enabled
+            if (passwordManager.isPasswordStorageEnabled()) {
+                try {
+                    passwordManager.storePassword(password);
+                    logger.info("Okta password stored for future use");
+                } catch (Exception e) {
+                    logger.warn("Failed to store password, but continuing with authentication", e);
+                }
+            }
+
+            return password;
         } else {
             throw new RuntimeException("Password entry cancelled by user");
         }

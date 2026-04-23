@@ -29,10 +29,12 @@ public class SamlAuthenticator {
 
     private final ConfigManager configManager;
     private final CredentialManager credentialManager;
+    private final PasswordManager passwordManager;
 
     public SamlAuthenticator() {
         this.configManager = new ConfigManager();
         this.credentialManager = new CredentialManager();
+        this.passwordManager = new PasswordManager(new DatabaseManager());
     }
 
     /**
@@ -94,7 +96,7 @@ public class SamlAuthenticator {
 
         WebDriver driver = createWebDriver();
         try {
-            BrowserLoginHandler loginHandler = new BrowserLoginHandler(driver, useOktaFastPass);
+            BrowserLoginHandler loginHandler = new BrowserLoginHandler(driver, useOktaFastPass, passwordManager);
             return loginHandler.performLogin(loginUrl, loginTitle, username);
         } finally {
             if (driver != null) {

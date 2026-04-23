@@ -15,13 +15,17 @@ public class ConfigurationDialog extends JDialog {
     private static final Logger logger = LoggerFactory.getLogger(ConfigurationDialog.class);
 
     private final DatabaseManager databaseManager;
+    private final PasswordManager passwordManager;
     private JSpinner durationSpinner;
+    private JCheckBox storePasswordCheckBox;
+    private JSpinner passwordExpirationSpinner;
     private JButton saveButton;
     private JButton cancelButton;
 
-    public ConfigurationDialog(Frame parent, DatabaseManager databaseManager) {
+    public ConfigurationDialog(Frame parent, DatabaseManager databaseManager, PasswordManager passwordManager) {
         super(parent, "Configuration", true);
         this.databaseManager = databaseManager;
+        this.passwordManager = passwordManager;
 
         initializeUI();
         loadCurrentSettings();
@@ -51,6 +55,26 @@ public class ConfigurationDialog extends JDialog {
         ));
         mainPanel.add(durationSpinner, gbc);
 
+        // Store Password Checkbox
+        gbc.gridx = 0; gbc.gridy = 1;
+        storePasswordCheckBox = new JCheckBox("Store and use Okta password");
+        storePasswordCheckBox.addActionListener(e -> updatePasswordExpirationEnabled());
+        mainPanel.add(storePasswordCheckBox, gbc);
+
+        // Password Expiration
+        gbc.gridx = 0; gbc.gridy = 2;
+        mainPanel.add(new JLabel("Password Expiration (minutes):"), gbc);
+
+        gbc.gridx = 1;
+        passwordExpirationSpinner = new JSpinner(new SpinnerNumberModel(
+            databaseManager.getPasswordExpirationMinutes(),
+            15,      // Min 15 minutes
+            10080,   // Max 7 days (10080 minutes)
+            60       // Step size 1 hour
+        ));
+        passwordExpirationSpinner.setEnabled(false);
+        mainPanel.add(passwordExpirationSpinner, gbc);
+
         add(mainPanel, BorderLayout.CENTER);
 
         // Button panel
@@ -66,9 +90,19 @@ public class ConfigurationDialog extends JDialog {
         add(buttonPanel, BorderLayout.SOUTH);
     }
 
+    private void updatePasswordExpirationEnabled() {
+        passwordExpirationSpinner.setEnabled(storePasswordCheckBox.isSelected());
+    }
+
     private void loadCurrentSettings() {
         int currentDurationMinutes = databaseManager.getSessionDuration() / 60;
         durationSpinner.setValue(currentDurationMinutes);
+
+        storePasswordCheckBox.setSelected(databaseManager.getConfig("store_password_enabled") != null &&
+                                          databaseManager.getConfig("store_password_enabled").equalsIgnoreCase("true"));
+        passwordExpirationSpinner.setValue(databaseManager.getPasswordExpirationMinutes());
+
+        updatePasswordExpirationEnabled();
     }
 
     private class SaveActionListener implements ActionListener {
@@ -77,9 +111,16 @@ public class ConfigurationDialog extends JDialog {
             try {
                 int durationMinutes = (Integer) durationSpinner.getValue();
                 int durationSeconds = durationMinutes * 60;
-
                 databaseManager.setSessionDuration(durationSeconds);
-                logger.info("Configuration saved: session_duration = {} seconds", durationSeconds);
+
+                int passwordExpirationMinutes = (Integer) passwordExpirationSpinner.getValue();
+                databaseManager.setPasswordExpirationMinutes(passwordExpirationMinutes);
+
+                boolean storePassword = storePasswordCheckBox.isSelected();
+                passwordManager.setPasswordStorageEnabled(storePassword);
+
+                logger.info("Configuration saved: session_duration = {} seconds, store_password = {}, password_expiration = {} minutes",
+                    durationSeconds, storePassword, passwordExpirationMinutes);
 
                 JOptionPane.showMessageDialog(ConfigurationDialog.this,
                     "Configuration saved successfully!",
