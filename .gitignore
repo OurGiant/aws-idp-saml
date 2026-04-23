@@ -15,3 +15,5 @@ screens/**
 failed_login_screenshot*
 uv.lock
 /.run
+java-swing/aws-saml-swing.log
+java-swing/target/**
