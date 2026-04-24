@@ -19,6 +19,7 @@ public class ConfigurationDialog extends JDialog {
     private JSpinner durationSpinner;
     private JCheckBox storePasswordCheckBox;
     private JSpinner passwordExpirationSpinner;
+    private JComboBox<String> themeComboBox;
     private JButton saveButton;
     private JButton cancelButton;
 
@@ -75,6 +76,18 @@ public class ConfigurationDialog extends JDialog {
         passwordExpirationSpinner.setEnabled(false);
         mainPanel.add(passwordExpirationSpinner, gbc);
 
+        // Theme selection
+        gbc.gridx = 0; gbc.gridy = 3;
+        mainPanel.add(new JLabel("Theme:"), gbc);
+
+        gbc.gridx = 1;
+        themeComboBox = new JComboBox<>();
+        String[] themes = ThemeManager.getAvailableThemeNames();
+        for (String theme : themes) {
+            themeComboBox.addItem(theme);
+        }
+        mainPanel.add(themeComboBox, gbc);
+
         add(mainPanel, BorderLayout.CENTER);
 
         // Button panel
@@ -102,6 +115,8 @@ public class ConfigurationDialog extends JDialog {
                                           databaseManager.getConfig("store_password_enabled").equalsIgnoreCase("true"));
         passwordExpirationSpinner.setValue(databaseManager.getPasswordExpirationMinutes());
 
+        themeComboBox.setSelectedItem(databaseManager.getTheme());
+
         updatePasswordExpirationEnabled();
     }
 
@@ -119,8 +134,18 @@ public class ConfigurationDialog extends JDialog {
                 boolean storePassword = storePasswordCheckBox.isSelected();
                 passwordManager.setPasswordStorageEnabled(storePassword);
 
-                logger.info("Configuration saved: session_duration = {} seconds, store_password = {}, password_expiration = {} minutes",
-                    durationSeconds, storePassword, passwordExpirationMinutes);
+                String selectedTheme = (String) themeComboBox.getSelectedItem();
+                databaseManager.setTheme(selectedTheme);
+
+                logger.info("Configuration saved: session_duration = {} seconds, store_password = {}, password_expiration = {} minutes, theme = {}",
+                    durationSeconds, storePassword, passwordExpirationMinutes, selectedTheme);
+
+                // Apply theme immediately
+                if (ThemeManager.applyTheme(selectedTheme)) {
+                    SwingUtilities.updateComponentTreeUI(getParent());
+                } else {
+                    logger.warn("Failed to apply theme immediately: {}", selectedTheme);
+                }
 
                 JOptionPane.showMessageDialog(ConfigurationDialog.this,
                     "Configuration saved successfully!",

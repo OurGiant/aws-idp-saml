@@ -17,3 +17,4 @@ uv.lock
 /.run
 java-swing/aws-saml-swing.log
 java-swing/target/**
+aws-saml-swing.log

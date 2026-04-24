@@ -51,10 +51,23 @@ public class SwingMain extends JFrame {
         databaseManager = new DatabaseManager();
         passwordManager = new PasswordManager(databaseManager);
 
+        // Set theme
+        setLookAndFeel();
+
         initializeUI();
         loadProfiles();
         refreshStatusTable();
         startStatusPolling();
+    }
+
+    private void setLookAndFeel() {
+        String themeName = databaseManager.getTheme();
+        if (!ThemeManager.applyTheme(themeName)) {
+            // If theme fails to apply, fallback to Flat Dark
+            logger.warn("Failed to apply theme: {}, falling back to Flat Dark", themeName);
+            ThemeManager.applyTheme("Flat Dark");
+            databaseManager.setTheme("Flat Dark");
+        }
     }
 
     private void initializeUI() {

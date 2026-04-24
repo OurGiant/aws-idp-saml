@@ -75,7 +75,8 @@ public class DatabaseManager {
         String[] defaults = {
             "session_duration", "14400", // 4 hours in seconds
             "min_duration", "900",      // 15 minutes in seconds
-            "max_duration", "28800"     // 8 hours in seconds
+            "max_duration", "28800",    // 8 hours in seconds
+            "theme", "Flat Dark"        // Default to Flat Dark theme
         };
 
         String insertSQL = "INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)";
@@ -141,6 +142,15 @@ public class DatabaseManager {
 
     public void setPasswordExpirationMinutes(int minutes) {
         setConfig("password_expiration_minutes", String.valueOf(minutes));
+    }
+
+    public String getTheme() {
+        String value = getConfig("theme");
+        return value != null ? value : "Flat Dark"; // Default Flat Dark
+    }
+
+    public void setTheme(String theme) {
+        setConfig("theme", theme);
     }
 
     // Token state methods
