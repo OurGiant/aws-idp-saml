@@ -16,7 +16,7 @@ __mozilla_driver_url__ = 'https://api.github.com/repos/mozilla/geckodriver/relea
 # ERROR
 # FATAL
 ##
-__console_log_level__ = logging.INFO
+__console_log_level__ = logging.DEBUG
 
 valid_browsers = ['chrome', 'firefox', 'edge']
 valid_idp = ['okta']

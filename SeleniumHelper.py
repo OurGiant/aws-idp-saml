@@ -43,6 +43,7 @@ class SeleniumHelper:
         """
         try:
             element = self.wait.until(ec.element_to_be_clickable(locator))
+            log_stream.debug(f'Element clickable {label}')
             element.click()
             log_stream.debug(f'Clicked element {label}')
             return True
