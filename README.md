@@ -8,6 +8,7 @@ Log into your Identity Provider (IdP) via a headless browser, retrieve a SAML as
 - [Installation](#installation)
   - [Python and Virtual Environment](#python-and-virtual-environment)
   - [Dependencies](#dependencies)
+  - [samlstat CLI (optional)](#samlstat-cli-optional)
   - [Browser Drivers](#browser-drivers)
   - [macOS Quarantine Fix](#macos-quarantine-fix)
 - [Configuration](#configuration)
@@ -22,6 +23,7 @@ Log into your Identity Provider (IdP) via a headless browser, retrieve a SAML as
   - [Profile Mode](#profile-mode)
   - [What Happens When You Run It](#what-happens-when-you-run-it)
 - [CLI Reference](#cli-reference)
+- [samlstat CLI Reference](#samlstat-cli-reference)
 - [Security](#security)
 - [Advanced](#advanced)
   - [Credential Encryption](#credential-encryption)
@@ -87,6 +89,21 @@ pip3 install -r requirements.txt
 ```
 
 If you need to install Poetry, see the [Poetry documentation](https://python-poetry.org/docs/).
+
+### samlstat CLI (optional)
+
+Install `samlstat` globally so you can check credential status and authenticate from any directory:
+
+```bash
+pipx install -e .
+```
+
+If you don't have pipx:
+```bash
+pip install --user pipx
+```
+
+After installation, `samlstat` is available system-wide regardless of which directory you're in or which virtual environment is active.
 
 ### Browser Drivers
 
@@ -273,6 +290,42 @@ On managed devices where Okta pre-authenticates the user, the utility will autom
 | `--screenshot-dir` | str | Directory for screenshots (default: `screenshots/{timestamp}`) |
 
 Flags marked `bool` are off by default and enabled by including them on the command line.
+
+### samlstat CLI Reference
+
+`samlstat` is a companion command that displays credential status and can trigger authentication — no need to `cd` into the project or activate a venv.
+
+#### Status (default)
+
+```bash
+samlstat                  # show all profiles
+samlstat -f prod          # filter by name
+samlstat -p natldev-admin # single profile
+samlstat --no-color       # disable color (for piping)
+```
+
+#### Auth
+
+```bash
+samlstat auth <profile>                    # authenticate (uses stored password by default)
+samlstat auth <profile> --fastpass         # use Okta FastPass
+samlstat auth <profile> --no-stored-password  # prompt for password
+samlstat auth <profile> --encrypted        # show encrypted credentials after auth
+samlstat auth <profile> --debug            # show browser window
+samlstat auth <profile> --browser firefox  # specify browser
+```
+
+| Flag | Description |
+|------|-------------|
+| `-f`, `--filter` | Filter profiles by name (case-insensitive substring) |
+| `-p`, `--profile` | Show status for a single profile |
+| `--no-color` | Disable color output |
+| `auth <profile>` | Authenticate and get credentials for a profile |
+| `--fastpass`, `-fp` | Use Okta FastPass |
+| `--no-stored-password` | Prompt for password instead of using stored |
+| `--encrypted`, `-e` | Display encrypted credentials after auth |
+| `--debug`, `-d` | Show browser window during login |
+| `--browser`, `-b` | Browser to use (chrome, firefox) |
 
 ## Security
 
