@@ -35,7 +35,7 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
         tuple: (is_mfa_screen, saml_response) where is_mfa_screen is bool and 
                saml_response is the result if MFA was clicked
     """
-    short_wait = WebDriverWait(driver, 8)
+    short_wait = WebDriverWait(driver, 20)
     # wait until the Okta Back to sign in element is present, which indicates the page has loaded enough to check for MFA
     try:
         short_wait.until(ec.presence_of_element_located((link_text_locator, "Back to sign in")))
@@ -130,12 +130,26 @@ def click_okta_mfa(wait, driver):
         " | //input[@class='button button-primary' and @type='submit' and @value='Send push' and @data-type='save']"
     )
     helper = SeleniumHelper(driver, wait)
-    
+
     try:
+        # First check if autoChallenge checkbox is present and checked
+        # If checked, push notification is automatically sent
+        try:
+            auto_challenge_checkbox = driver.find_element(By.XPATH, "//input[@name='autoChallenge']")
+            if auto_challenge_checkbox.is_selected():
+                log_stream.info('Auto-challenge enabled - push notification sent automatically')
+                ScreenshotRecorder.capture(driver, "auto_challenge_enabled")
+                return "MFA_AUTO_CHALLENGE"
+        except se.NoSuchElementException:
+            # Checkbox not present, continue with normal flow
+            pass
+
+        # Auto-challenge not enabled, need to click the push notification button
         log_stream.info('Select Push Notification')
         ScreenshotRecorder.capture(driver, "before_mfa_selection")
         helper.click_element((xpath_locator, select_push_notification), "MFA push notification")
         ScreenshotRecorder.capture(driver, "after_mfa_selection")
+
     except se.ElementClickInterceptedException:
         ScreenshotRecorder.capture(driver, "mfa_click_intercepted")
         saml_response = "CouldNotEnterFormData"

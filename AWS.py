@@ -27,8 +27,8 @@ class STS:
         pre_session = BotoSession(region_name=region)
         sts = pre_session.client('sts')
 
-        log_stream.info('Role: ' + role)
-        log_stream.info('Principle: ' + principle)
+        log_stream.info(f'Role: {role}')
+        log_stream.info(f'Principle: {principle}')
 
         try:
             get_sts = sts.assume_role_with_saml(
@@ -39,8 +39,7 @@ class STS:
             )
 
         except err.ClientError as e:
-            error_message = "Error assuming role. Token length: " + str(len(saml_assertion))
-            log_stream.critical(error_message)
+            log_stream.critical(f'Error assuming role. Token length: {len(saml_assertion)}')
             # log_stream.info(str(saml_assertion))
             log_stream.critical(str(e))
             raise SystemExit(2)

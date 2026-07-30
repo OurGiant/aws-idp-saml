@@ -14,26 +14,18 @@ log_stream = Logging('saml_select')
 def select_role_from_saml_page(driver, gui_name, iam_role, design):
     driver.maximize_window()
     if design == "A":
-        x = 0
         saml_accounts = {}
-        while x < len(driver.find_elements(By.CLASS_NAME, "saml-account-name")):
-            saml_account = str(driver.find_elements(By.CLASS_NAME, "saml-account-name")[x].text)
-            saml_account = saml_account.replace('(', '').replace(')', '').replace(':', '')
-            try:
-                saml_account_name = saml_account.split(' ')[1]
-            except IndexError:
-                saml_account_name = 'No-Alias-Configured'
-            try:
-                saml_account_token = saml_account.split(' ')[2]
-            except IndexError:
-                saml_account_token = 'No-Token-Configured'
-            saml_accounts.update({saml_account_name: saml_account_token})
-            x += 1
+        saml_account_elements = driver.find_elements(By.CLASS_NAME, "saml-account-name")
+        for element in saml_account_elements:
+            saml_account = element.text.replace('(', '').replace(')', '').replace(':', '')
+            parts = saml_account.split(' ')
+            saml_account_name = parts[1] if len(parts) > 1 else 'No-Alias-Configured'
+            saml_account_token = parts[2] if len(parts) > 2 else 'No-Token-Configured'
+            saml_accounts[saml_account_name] = saml_account_token
 
         requested_account_token = saml_accounts.get(gui_name)
 
-        account_radio_id = iam_role
-        account_radio = driver.find_element(By.ID, account_radio_id)
+        account_radio = driver.find_element(By.ID, iam_role)
         account_radio.click()
         sign_in_button = driver.find_element(By.ID, "signin_button")
         sign_in_button.click()
@@ -65,36 +57,46 @@ def get_roles_from_saml_response(saml_response, account_map):
 
     role_id = 0
     for attribute in assertion_element.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}Attribute'):
-        if attribute.get('Name') == 'https://aws.amazon.com/SAML/Attributes/Role':
-            for value in attribute.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeValue'):
-                if 'arn:aws:iam:' in value.text and ':role/' in value.text:
-                    principle_arn = str(value.text).split(',', 1)[1]
-                    role_arn = str(value.text).split(',', 1)[0]
-                    account_number = role_arn.split(':')[4]
-                    account_name = account_number
-                    role_name = ((role_arn.split(':')[5]).split('/')[1]).split('-', 1)[1]
-                    if account_map is None or len(account_map) == 0:
-                        table_object.append([role_id, account_number, role_name])
-                        use_account_name = False
-                    else:
-                        use_account_name = True
-                        for account in account_map:
-                            if account['number'] == account_number:
-                                account_name = account['name']
-                            # else:
-                            #     account_name = account_number
-                        table_object.append([role_id, account_number, account_name, role_name])
+        if attribute.get('Name') != 'https://aws.amazon.com/SAML/Attributes/Role':
+            continue
+        for value in attribute.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeValue'):
+            value_text = value.text or ''
+            if 'arn:aws:iam:' not in value_text or ':role/' not in value_text:
+                continue
 
-                    if use_account_name is True:
-                        selector_object = {"id": role_id, "arn": role_arn, "account_number": account_number,
-                                           "name": role_name, "principle": principle_arn,
-                                           "rolename": account_name + '-' + role_name, "account_name": account_name}
-                    else:
-                        selector_object = {"id": role_id, "arn": role_arn, "account_number": account_number,
-                                           "name": role_name, "principle": principle_arn,
-                                           "rolename": account_number + '-' + role_name}
-                    all_roles.append(selector_object)
-                    role_id += 1
+            role_arn, principle_arn = value_text.split(',', 1)
+            account_number = role_arn.split(':')[4]
+            account_name = account_number
+            role_name = role_arn.split(':', 5)[5].split('/')[1].split('-', 1)[1]
+
+            if not account_map:
+                table_object.append([role_id, account_number, role_name])
+                selector_object = {
+                    "id": role_id,
+                    "arn": role_arn,
+                    "account_number": account_number,
+                    "name": role_name,
+                    "principle": principle_arn,
+                    "rolename": f"{account_number}-{role_name}"
+                }
+            else:
+                for account in account_map:
+                    if account['number'] == account_number:
+                        account_name = account['name']
+                        break
+                table_object.append([role_id, account_number, account_name, role_name])
+                selector_object = {
+                    "id": role_id,
+                    "arn": role_arn,
+                    "account_number": account_number,
+                    "name": role_name,
+                    "principle": principle_arn,
+                    "rolename": f"{account_name}-{role_name}",
+                    "account_name": account_name
+                }
+
+            all_roles.append(selector_object)
+            role_id += 1
     return all_roles, table_object
 
 

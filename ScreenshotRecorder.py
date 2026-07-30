@@ -74,13 +74,25 @@ class ScreenshotRecorder:
             filename += ".png"
             filepath = os.path.join(cls._screenshot_dir, filename)
 
-            driver.save_screenshot(filepath)
-            log_stream.debug(f"Screenshot saved: {filepath}")
+            # Run screenshot capture in background thread to avoid blocking
+            import threading
+            thread = threading.Thread(target=cls._capture_sync, args=(driver, filepath))
+            thread.daemon = True
+            thread.start()
             return filepath
 
         except Exception as e:
             log_stream.error(f"Failed to capture screenshot: {str(e)}")
             return None
+
+    @classmethod
+    def _capture_sync(cls, driver, filepath: str) -> None:
+        """Synchronous screenshot capture method for background threading."""
+        try:
+            driver.save_screenshot(filepath)
+            log_stream.debug(f"Screenshot saved: {filepath}")
+        except Exception as e:
+            log_stream.error(f"Failed to save screenshot {filepath}: {str(e)}")
 
     @classmethod
     def get_output_dir(cls) -> Optional[str]:
