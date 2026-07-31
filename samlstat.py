@@ -332,12 +332,33 @@ def cmd_auth(args):
     else:
         c = Color
 
-    # Validate profile exists
     aws_dir = get_aws_dir()
     samlsts_profiles = load_samlsts_profiles(aws_dir)
 
-    if args.profile not in samlsts_profiles:
-        print(f"{c.RED}Profile '{args.profile}' not found in ~/.aws/samlsts{c.RESET}")
+    # Determine which profiles to auth
+    profiles_to_auth = []
+
+    if args.filter:
+        # Auth all profiles matching the filter
+        filter_lower = args.filter.lower()
+        profiles_to_auth = [p for p in samlsts_profiles if filter_lower in p.lower()]
+        if not profiles_to_auth:
+            print(f"{c.RED}No profiles match filter '{args.filter}'{c.RESET}")
+            sys.exit(1)
+    elif args.profiles:
+        # Auth a list of profiles
+        profiles_to_auth = args.profiles
+    elif args.profile:
+        # Single profile (positional)
+        profiles_to_auth = [args.profile]
+    else:
+        print(f"{c.RED}Provide a profile name, -p <profiles>, or -f <filter>{c.RESET}")
+        sys.exit(1)
+
+    # Validate all profiles exist
+    invalid = [p for p in profiles_to_auth if p not in samlsts_profiles]
+    if invalid:
+        print(f"{c.RED}Profile(s) not found: {', '.join(invalid)}{c.RESET}")
         print(f"{c.DIM}Available profiles:{c.RESET}")
         for p in samlsts_profiles:
             print(f"  {p}")
@@ -351,36 +372,34 @@ def cmd_auth(args):
         print(f"{c.RED}Cannot find getCredentials.py at: {get_creds}{c.RESET}")
         sys.exit(1)
 
-    # Build command
-    cmd = [sys.executable, str(get_creds), "--profilename", args.profile]
+    # Auth each profile
+    for profile in profiles_to_auth:
+        cmd = [sys.executable, str(get_creds), "--profilename", profile]
 
-    if args.fastpass:
-        cmd.append("--fastpass")
-    if args.stored_password and not args.no_stored_password:
-        cmd.append("--storedpw")
-    if args.debug:
-        cmd.append("--debug")
-    if args.browser:
-        cmd.extend(["--browser", args.browser])
-    if args.encrypted:
-        cmd.append("--encrypted")
+        if args.fastpass:
+            cmd.append("--fastpass")
+        if args.stored_password and not args.no_stored_password:
+            cmd.append("--storedpw")
+        if args.debug:
+            cmd.append("--debug")
+        if args.browser:
+            cmd.extend(["--browser", args.browser])
+        if args.encrypted:
+            cmd.append("--encrypted")
 
-    print(f"{c.BOLD}{c.CYAN}Authenticating profile: {args.profile}{c.RESET}\n")
+        print(f"{c.BOLD}{c.CYAN}Authenticating profile: {profile}{c.RESET}\n")
 
-    # Run interactively (inherits stdin/stdout for password prompts)
-    try:
-        result = subprocess.run(cmd, cwd=str(script_dir))
-        if result.returncode == 0:
-            # Write expiration to SQLite so 'samlstat' status picks it up
-            duration = get_session_duration(aws_dir, args.profile)
-            save_token_expiration(aws_dir, args.profile, duration)
-            print(f"\n{c.GREEN}✓ Authentication successful for: {args.profile}{c.RESET}")
-        else:
-            print(f"\n{c.RED}✗ Authentication failed (exit code: {result.returncode}){c.RESET}")
-            sys.exit(result.returncode)
-    except KeyboardInterrupt:
-        print(f"\n{c.YELLOW}Cancelled.{c.RESET}")
-        sys.exit(130)
+        try:
+            result = subprocess.run(cmd, cwd=str(script_dir))
+            if result.returncode == 0:
+                duration = get_session_duration(aws_dir, profile)
+                save_token_expiration(aws_dir, profile, duration)
+                print(f"\n{c.GREEN}✓ Authentication successful for: {profile}{c.RESET}\n")
+            else:
+                print(f"\n{c.RED}✗ Authentication failed for: {profile} (exit code: {result.returncode}){c.RESET}\n")
+        except KeyboardInterrupt:
+            print(f"\n{c.YELLOW}Cancelled.{c.RESET}")
+            sys.exit(130)
 
 
 # --- Main ---
@@ -389,6 +408,15 @@ def main():
     parser = argparse.ArgumentParser(
         prog="samlstat",
         description="AWS SAML credential status and authentication CLI.",
+        epilog="""examples:
+  samlstat                        show all profiles
+  samlstat -f natl                filter by name
+  samlstat -v                     show only valid
+  samlstat -xf natl               expired natl profiles
+  samlstat auth <profile>         authenticate a profile
+  samlstat auth -f tier1          authenticate all tier1 profiles
+  samlstat auth -p prof1 prof2    authenticate multiple profiles""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--no-color",
@@ -457,10 +485,27 @@ def main():
         "auth",
         aliases=["a"],
         help="Authenticate and get credentials for a profile",
+        description="Authenticate one or more AWS SAML profiles.",
+        epilog="""examples:
+  samlstat auth natldev-tier1                     single profile
+  samlstat auth -p natldev-tier1 natlprod-tier1   multiple profiles
+  samlstat auth -f tier1                          all profiles matching filter
+  samlstat auth -f prod --encrypted               with encrypted output""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     auth_parser.add_argument(
         "profile",
-        help="Profile name to authenticate",
+        nargs="?",
+        help="Profile name to authenticate (single profile)",
+    )
+    auth_parser.add_argument(
+        "-p", "--profiles",
+        nargs="+",
+        help="Space-separated list of profiles to authenticate",
+    )
+    auth_parser.add_argument(
+        "-f", "--filter",
+        help="Authenticate all profiles matching this filter (case-insensitive substring)",
     )
     auth_parser.add_argument(
         "--fastpass", "-fp",
