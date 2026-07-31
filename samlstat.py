@@ -260,6 +260,14 @@ def cmd_status(args):
     print(f"\n{c.BOLD}{c.CYAN}AWS SAML Credential Status{c.RESET}")
     print(f"{c.DIM}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{c.RESET}\n")
 
+    # Apply status filter (-v, -u, -x)
+    if getattr(args, "valid", False):
+        rows = [r for r in rows if r[1] == "VALID"]
+    elif getattr(args, "unknown", False):
+        rows = [r for r in rows if r[1] == "UNKNOWN"]
+    elif getattr(args, "expired", False):
+        rows = [r for r in rows if r[1] == "EXPIRED"]
+
     filter_text = getattr(args, "filter", None)
     print_status_table(rows, c, filter_text=filter_text)
     filtered_rows = rows if not filter_text else [r for r in rows if filter_text.lower() in r[0].lower()]
@@ -393,6 +401,21 @@ def main():
         help="Filter profiles by name (case-insensitive substring match)",
     )
     parser.add_argument(
+        "-v", "--valid",
+        action="store_true",
+        help="Show only VALID profiles",
+    )
+    parser.add_argument(
+        "-u", "--unknown",
+        action="store_true",
+        help="Show only UNKNOWN profiles",
+    )
+    parser.add_argument(
+        "-x", "--expired",
+        action="store_true",
+        help="Show only EXPIRED profiles",
+    )
+    parser.add_argument(
         "-p", "--profile",
         help="Show status for a single profile only",
     )
@@ -408,6 +431,21 @@ def main():
     status_parser.add_argument(
         "-f", "--filter",
         help="Filter profiles by name (case-insensitive substring match)",
+    )
+    status_parser.add_argument(
+        "-v", "--valid",
+        action="store_true",
+        help="Show only VALID profiles",
+    )
+    status_parser.add_argument(
+        "-u", "--unknown",
+        action="store_true",
+        help="Show only UNKNOWN profiles",
+    )
+    status_parser.add_argument(
+        "-x", "--expired",
+        action="store_true",
+        help="Show only EXPIRED profiles",
     )
     status_parser.add_argument(
         "-p", "--profile",
