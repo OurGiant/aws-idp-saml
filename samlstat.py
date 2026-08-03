@@ -364,7 +364,64 @@ def cmd_auth(args):
             print(f"  {p}")
         sys.exit(1)
 
-    # Locate getCredentials.py relative to this script
+    # Use batch auth (shared SAML login) when multiple profiles are requested
+    if len(profiles_to_auth) > 1:
+        _batch_auth(profiles_to_auth, args, aws_dir, c)
+    else:
+        _single_auth(profiles_to_auth[0], args, aws_dir, c)
+
+
+def _batch_auth(profiles: list[str], args, aws_dir: Path, c):
+    """Authenticate multiple profiles with shared SAML login (one MFA prompt per identity group)."""
+    # Import batch_auth from the same directory
+    script_dir = Path(__file__).resolve().parent
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
+
+    from batch_auth import perform_batch_auth
+
+    print(f"{c.BOLD}{c.CYAN}Batch authenticating {len(profiles)} profile(s) (shared login per identity group){c.RESET}\n")
+
+    def status_cb(event, profile, message):
+        if event == "INFO":
+            print(f"{c.DIM}{message}{c.RESET}")
+        elif event == "LOGIN":
+            print(f"\n{c.BOLD}{c.CYAN}{message}{c.RESET}\n")
+        elif event == "OK":
+            duration = get_session_duration(aws_dir, profile)
+            save_token_expiration(aws_dir, profile, duration)
+            print(f"  {c.GREEN}✓ {profile}{c.RESET} — {message}")
+        elif event == "FAIL":
+            print(f"  {c.RED}✗ {profile}{c.RESET} — {message}")
+        elif event == "SKIP":
+            print(f"  {c.YELLOW}⊘ {profile}{c.RESET} — {message}")
+
+    try:
+        results = perform_batch_auth(
+            profiles=profiles,
+            use_fastpass=args.fastpass,
+            use_debug=args.debug,
+            show_encrypted=args.encrypted,
+            status_callback=status_cb,
+        )
+
+        # Summary
+        succeeded = sum(1 for v in results.values() if v)
+        failed = sum(1 for v in results.values() if not v)
+        print(f"\n{c.BOLD}Batch complete:{c.RESET} {c.GREEN}{succeeded} succeeded{c.RESET}", end="")
+        if failed:
+            print(f", {c.RED}{failed} failed{c.RESET}")
+        else:
+            print()
+        print()
+
+    except KeyboardInterrupt:
+        print(f"\n{c.YELLOW}Cancelled.{c.RESET}")
+        sys.exit(130)
+
+
+def _single_auth(profile: str, args, aws_dir: Path, c):
+    """Authenticate a single profile via subprocess (preserves interactive password prompt)."""
     script_dir = Path(__file__).resolve().parent
     get_creds = script_dir / "getCredentials.py"
 
@@ -372,34 +429,32 @@ def cmd_auth(args):
         print(f"{c.RED}Cannot find getCredentials.py at: {get_creds}{c.RESET}")
         sys.exit(1)
 
-    # Auth each profile
-    for profile in profiles_to_auth:
-        cmd = [sys.executable, str(get_creds), "--profilename", profile]
+    cmd = [sys.executable, str(get_creds), "--profilename", profile]
 
-        if args.fastpass:
-            cmd.append("--fastpass")
-        if args.stored_password and not args.no_stored_password:
-            cmd.append("--storedpw")
-        if args.debug:
-            cmd.append("--debug")
-        if args.browser:
-            cmd.extend(["--browser", args.browser])
-        if args.encrypted:
-            cmd.append("--encrypted")
+    if args.fastpass:
+        cmd.append("--fastpass")
+    if args.stored_password and not args.no_stored_password:
+        cmd.append("--storedpw")
+    if args.debug:
+        cmd.append("--debug")
+    if args.browser:
+        cmd.extend(["--browser", args.browser])
+    if args.encrypted:
+        cmd.append("--encrypted")
 
-        print(f"{c.BOLD}{c.CYAN}Authenticating profile: {profile}{c.RESET}\n")
+    print(f"{c.BOLD}{c.CYAN}Authenticating profile: {profile}{c.RESET}\n")
 
-        try:
-            result = subprocess.run(cmd, cwd=str(script_dir))
-            if result.returncode == 0:
-                duration = get_session_duration(aws_dir, profile)
-                save_token_expiration(aws_dir, profile, duration)
-                print(f"\n{c.GREEN}✓ Authentication successful for: {profile}{c.RESET}\n")
-            else:
-                print(f"\n{c.RED}✗ Authentication failed for: {profile} (exit code: {result.returncode}){c.RESET}\n")
-        except KeyboardInterrupt:
-            print(f"\n{c.YELLOW}Cancelled.{c.RESET}")
-            sys.exit(130)
+    try:
+        result = subprocess.run(cmd, cwd=str(script_dir))
+        if result.returncode == 0:
+            duration = get_session_duration(aws_dir, profile)
+            save_token_expiration(aws_dir, profile, duration)
+            print(f"\n{c.GREEN}✓ Authentication successful for: {profile}{c.RESET}\n")
+        else:
+            print(f"\n{c.RED}✗ Authentication failed for: {profile} (exit code: {result.returncode}){c.RESET}\n")
+    except KeyboardInterrupt:
+        print(f"\n{c.YELLOW}Cancelled.{c.RESET}")
+        sys.exit(130)
 
 
 # --- Main ---
