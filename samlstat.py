@@ -275,6 +275,127 @@ def cmd_status(args):
     print()
 
 
+# --- Creds command ---
+
+def cmd_creds(args):
+    """Show encrypted credentials for already-authenticated profiles."""
+    if args.no_color or not supports_color():
+        c = NoColor
+    else:
+        c = Color
+
+    aws_dir = get_aws_dir()
+
+    # Read credentials file
+    creds_path = aws_dir / "credentials"
+    if not creds_path.exists():
+        print(f"{c.RED}No credentials file found at {creds_path}{c.RESET}")
+        sys.exit(1)
+
+    config = configparser.ConfigParser()
+    config.read(str(creds_path))
+
+    available_cred_profiles = set(config.sections())
+
+    # Determine which profiles to show creds for
+    profiles_to_show = []
+
+    if hasattr(args, "filter") and args.filter:
+        filter_lower = args.filter.lower()
+        profiles_to_show = [p for p in sorted(available_cred_profiles) if filter_lower in p.lower()]
+    elif hasattr(args, "profiles") and args.profiles:
+        profiles_to_show = args.profiles
+    elif hasattr(args, "profile") and args.profile:
+        profiles_to_show = [args.profile]
+    else:
+        # Called via top-level -c flag — use top-level filter/status flags
+        top_filter = getattr(args, "filter", None)
+        top_profile = getattr(args, "profile", None)
+
+        if top_profile:
+            profiles_to_show = [top_profile]
+        elif top_filter:
+            filter_lower = top_filter.lower()
+            profiles_to_show = [p for p in sorted(available_cred_profiles) if filter_lower in p.lower()]
+        else:
+            profiles_to_show = sorted(available_cred_profiles)
+
+        # Apply status filter if -v/-x/-u used with -c
+        if getattr(args, "valid", False) or getattr(args, "expired", False) or getattr(args, "unknown", False):
+            token_expirations = load_token_expirations(aws_dir)
+            now = datetime.now(timezone.utc)
+            filtered = []
+            for p in profiles_to_show:
+                exp = token_expirations.get(p)
+                if getattr(args, "valid", False):
+                    if exp and exp > now:
+                        filtered.append(p)
+                elif getattr(args, "expired", False):
+                    if exp and exp <= now:
+                        filtered.append(p)
+                elif getattr(args, "unknown", False):
+                    if exp is None:
+                        filtered.append(p)
+            profiles_to_show = filtered
+
+    if not profiles_to_show:
+        print(f"{c.RED}No matching profiles with credentials found.{c.RESET}")
+        sys.exit(1)
+
+    # Validate profiles have credentials
+    missing = [p for p in profiles_to_show if p not in available_cred_profiles]
+    if missing:
+        print(f"{c.RED}No credentials found for: {', '.join(missing)}{c.RESET}")
+        # Continue with the ones that do exist
+        profiles_to_show = [p for p in profiles_to_show if p in available_cred_profiles]
+        if not profiles_to_show:
+            sys.exit(1)
+
+    # Import encryption utility
+    script_dir = Path(__file__).resolve().parent
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
+
+    try:
+        import Utilities
+    except ImportError:
+        print(f"{c.RED}Cannot import Utilities module for encryption{c.RESET}")
+        sys.exit(1)
+
+    # Show encrypted creds for each profile
+    token_expirations = load_token_expirations(aws_dir)
+    now = datetime.now(timezone.utc)
+
+    for profile in profiles_to_show:
+        access_key = config.get(profile, "aws_access_key_id", fallback=None)
+        secret_key = config.get(profile, "aws_secret_access_key", fallback=None)
+        session_token = config.get(profile, "aws_session_token", fallback=None)
+
+        if not all([access_key, secret_key, session_token]):
+            print(f"{c.YELLOW}⊘ {profile} — incomplete credentials, skipping{c.RESET}")
+            continue
+
+        # Check expiration
+        expiration = token_expirations.get(profile)
+        if expiration and expiration < now:
+            status_note = f" {c.YELLOW}(expired){c.RESET}"
+        elif expiration:
+            remaining = format_duration((expiration - now).total_seconds())
+            status_note = f" {c.GREEN}({remaining} remaining){c.RESET}"
+        else:
+            status_note = f" {c.DIM}(unknown expiry){c.RESET}"
+
+        encrypted = Utilities.encrypt_credentials(access_key, secret_key, session_token)
+        if encrypted == "Encryption Error":
+            print(f"{c.RED}✗ {profile} — encryption failed (check ~/.aws/public_key.pem){c.RESET}")
+            continue
+
+        print(f"\n{c.BOLD}{profile}{c.RESET}{status_note}")
+        print(encrypted)
+
+    print()
+
+
 # --- Auth command ---
 
 def save_token_expiration(aws_dir: Path, profile: str, duration_seconds: int):
@@ -468,9 +589,13 @@ def main():
   samlstat -f natl                filter by name
   samlstat -v                     show only valid
   samlstat -xf natl               expired natl profiles
+  samlstat -cf natl               encrypted creds for natl profiles
+  samlstat -cvf tier1             encrypted creds for valid tier1 profiles
   samlstat auth <profile>         authenticate a profile
   samlstat auth -f tier1          authenticate all tier1 profiles
-  samlstat auth -p prof1 prof2    authenticate multiple profiles""",
+  samlstat auth -p prof1 prof2    authenticate multiple profiles
+  samlstat creds <profile>        show encrypted creds for a single profile
+  samlstat creds -f tier1         show encrypted creds for all tier1 profiles""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -501,6 +626,11 @@ def main():
     parser.add_argument(
         "-p", "--profile",
         help="Show status for a single profile only",
+    )
+    parser.add_argument(
+        "-c", "--creds",
+        action="store_true",
+        help="Show encrypted credentials for matching profiles",
     )
 
     subparsers = parser.add_subparsers(dest="command")
@@ -593,10 +723,44 @@ def main():
         help="Display encrypted credentials after auth",
     )
 
+    # --- creds ---
+    creds_parser = subparsers.add_parser(
+        "creds",
+        aliases=["c"],
+        help="Show encrypted credentials for an already-authenticated profile",
+        description="Display encrypted credentials from ~/.aws/credentials without re-authenticating.",
+        epilog="""examples:
+  samlstat creds natlprod-admin                   single profile
+  samlstat creds -p natldev-tier1 natlqa-tier1    multiple profiles
+  samlstat creds -f tier1                         all profiles matching filter
+  samlstat -cf natl                               shorthand via top-level flag
+  samlstat -cvf tier1                             only valid tier1 profiles""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    creds_parser.add_argument(
+        "profile",
+        nargs="?",
+        help="Profile name to show encrypted credentials for",
+    )
+    creds_parser.add_argument(
+        "-p", "--profiles",
+        nargs="+",
+        help="Space-separated list of profiles",
+    )
+    creds_parser.add_argument(
+        "-f", "--filter",
+        help="Show encrypted creds for all profiles matching this filter",
+    )
+
     args = parser.parse_args()
 
     if args.command in ("auth", "a"):
         cmd_auth(args)
+    elif args.command in ("creds", "c"):
+        cmd_creds(args)
+    elif getattr(args, "creds", False):
+        # Top-level -c flag
+        cmd_creds(args)
     else:
         # Default to status (handles None, "status", "s")
         cmd_status(args)
