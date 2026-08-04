@@ -114,6 +114,9 @@ def load_token_expirations(aws_dir: Path) -> dict[str, datetime]:
 
 # --- Status computation ---
 
+EXPIRING_THRESHOLD = timedelta(minutes=60)
+
+
 def compute_status(expiration: datetime | None, now: datetime) -> tuple[str, str, str]:
     """
     Compute status, expiration display, and time remaining for a profile.
@@ -126,6 +129,8 @@ def compute_status(expiration: datetime | None, now: datetime) -> tuple[str, str
         expires_at = expiration.astimezone().strftime("%Y-%m-%d %H:%M:%S")
         remaining = expiration - now
         time_remaining = format_duration(remaining.total_seconds())
+        if remaining <= EXPIRING_THRESHOLD:
+            return ("EXPIRING", expires_at, time_remaining)
         return ("VALID", expires_at, time_remaining)
     else:
         expires_at = expiration.astimezone().strftime("%Y-%m-%d %H:%M:%S")
@@ -147,12 +152,14 @@ def format_duration(total_seconds: float) -> str:
 
 
 def status_sort_key(status: str) -> int:
-    """Sort order: VALID first, UNKNOWN second, EXPIRED last."""
+    """Sort order: VALID first, EXPIRING second, UNKNOWN third, EXPIRED last."""
     if status == "VALID":
         return 0
-    if status == "UNKNOWN":
+    if status == "EXPIRING":
         return 1
-    return 2
+    if status == "UNKNOWN":
+        return 2
+    return 3
 
 
 # --- Display ---
@@ -180,14 +187,18 @@ def print_status_table(rows: list[tuple[str, str, str, str]], c, filter_text: st
     for profile, status, expires_at, time_remaining in rows:
         if status == "VALID":
             status_colored = f"{c.GREEN}{status:<{widths[1]}}{c.RESET}"
+        elif status == "EXPIRING":
+            status_colored = f"{c.YELLOW}{status:<{widths[1]}}{c.RESET}"
         elif status == "EXPIRED":
             status_colored = f"{c.RED}{status:<{widths[1]}}{c.RESET}"
         else:
-            status_colored = f"{c.YELLOW}{status:<{widths[1]}}{c.RESET}"
+            status_colored = f"{c.DIM}{status:<{widths[1]}}{c.RESET}"
 
         if time_remaining == "Expired":
             time_colored = f"{c.RED}{time_remaining:<{widths[3]}}{c.RESET}"
         elif time_remaining == "Unknown":
+            time_colored = f"{c.DIM}{time_remaining:<{widths[3]}}{c.RESET}"
+        elif status == "EXPIRING":
             time_colored = f"{c.YELLOW}{time_remaining:<{widths[3]}}{c.RESET}"
         else:
             time_colored = f"{c.GREEN}{time_remaining:<{widths[3]}}{c.RESET}"
@@ -200,6 +211,7 @@ def print_status_table(rows: list[tuple[str, str, str, str]], c, filter_text: st
 def print_summary(rows: list[tuple[str, str, str, str]], c):
     """Print a summary line below the table."""
     valid = sum(1 for r in rows if r[1] == "VALID")
+    expiring = sum(1 for r in rows if r[1] == "EXPIRING")
     expired = sum(1 for r in rows if r[1] == "EXPIRED")
     unknown = sum(1 for r in rows if r[1] == "UNKNOWN")
     total = len(rows)
@@ -207,10 +219,12 @@ def print_summary(rows: list[tuple[str, str, str, str]], c):
     parts = [f"{total} profiles"]
     if valid:
         parts.append(f"{c.GREEN}{valid} valid{c.RESET}")
+    if expiring:
+        parts.append(f"{c.YELLOW}{expiring} expiring{c.RESET}")
     if expired:
         parts.append(f"{c.RED}{expired} expired{c.RESET}")
     if unknown:
-        parts.append(f"{c.YELLOW}{unknown} unknown{c.RESET}")
+        parts.append(f"{c.DIM}{unknown} unknown{c.RESET}")
 
     print(f"\n{' | '.join(parts)}")
 
@@ -257,21 +271,41 @@ def cmd_status(args):
             print(f"{c.RED}Profile '{args.profile}' not found.{c.RESET}")
             sys.exit(1)
 
-    print(f"\n{c.BOLD}{c.CYAN}AWS SAML Credential Status{c.RESET}")
-    print(f"{c.DIM}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{c.RESET}\n")
-
     # Apply status filter (-v, -u, -x)
     if getattr(args, "valid", False):
         rows = [r for r in rows if r[1] == "VALID"]
     elif getattr(args, "unknown", False):
         rows = [r for r in rows if r[1] == "UNKNOWN"]
     elif getattr(args, "expired", False):
-        rows = [r for r in rows if r[1] == "EXPIRED"]
+        rows = [r for r in rows if r[1] in ("EXPIRED", "EXPIRING")]
 
     filter_text = getattr(args, "filter", None)
-    print_status_table(rows, c, filter_text=filter_text)
-    filtered_rows = rows if not filter_text else [r for r in rows if filter_text.lower() in r[0].lower()]
-    print_summary(filtered_rows, c)
+
+    # Apply name filter to rows for JSON and display
+    if filter_text:
+        rows = [r for r in rows if filter_text.lower() in r[0].lower()]
+
+    # JSON output mode
+    if getattr(args, "json_output", False):
+        import json
+        pinned = load_pinned_profiles(aws_dir)
+        output = []
+        for profile, status, expires_at, time_remaining in rows:
+            output.append({
+                "profile": profile,
+                "status": status.lower(),
+                "expires_at": expires_at if expires_at != "N/A" else None,
+                "time_remaining": time_remaining if time_remaining not in ("Unknown", "Expired") else None,
+                "pinned": profile in pinned,
+            })
+        print(json.dumps(output, indent=2))
+        return
+
+    print(f"\n{c.BOLD}{c.CYAN}AWS SAML Credential Status{c.RESET}")
+    print(f"{c.DIM}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{c.RESET}\n")
+
+    print_status_table(rows, c)
+    print_summary(rows, c)
     print()
 
 
@@ -446,6 +480,109 @@ def get_session_duration(aws_dir: Path, profile: str) -> int:
     return 14400
 
 
+# --- Pin management ---
+
+def _ensure_pin_table(aws_dir: Path):
+    """Ensure the pinned_profiles table exists in the SQLite DB."""
+    db_path = aws_dir / "aws_saml.db"
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS pinned_profiles "
+            "(profile_name TEXT PRIMARY KEY, pinned_at TEXT NOT NULL)"
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.Error:
+        pass
+
+
+def pin_profile(aws_dir: Path, profile: str):
+    """Pin a profile."""
+    _ensure_pin_table(aws_dir)
+    db_path = aws_dir / "aws_saml.db"
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            "INSERT OR REPLACE INTO pinned_profiles (profile_name, pinned_at) VALUES (?, ?)",
+            (profile, datetime.now().isoformat()),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.Error:
+        pass
+
+
+def unpin_profile(aws_dir: Path, profile: str):
+    """Unpin a profile."""
+    _ensure_pin_table(aws_dir)
+    db_path = aws_dir / "aws_saml.db"
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("DELETE FROM pinned_profiles WHERE profile_name = ?", (profile,))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error:
+        pass
+
+
+def load_pinned_profiles(aws_dir: Path) -> set[str]:
+    """Load all pinned profile names."""
+    _ensure_pin_table(aws_dir)
+    db_path = aws_dir / "aws_saml.db"
+    pinned = set()
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.execute("SELECT profile_name FROM pinned_profiles")
+        for row in cursor:
+            pinned.add(row[0])
+        conn.close()
+    except sqlite3.Error:
+        pass
+    return pinned
+
+
+def cmd_pin(args):
+    """Pin or unpin profiles."""
+    if args.no_color or not supports_color():
+        c = NoColor
+    else:
+        c = Color
+
+    aws_dir = get_aws_dir()
+    samlsts_profiles = load_samlsts_profiles(aws_dir)
+
+    if args.pin_action == "list":
+        pinned = load_pinned_profiles(aws_dir)
+        if not pinned:
+            print(f"{c.DIM}No pinned profiles.{c.RESET}")
+        else:
+            print(f"{c.BOLD}Pinned profiles:{c.RESET}")
+            for p in sorted(pinned):
+                print(f"  📌 {p}")
+        return
+
+    profiles = args.pin_profiles or []
+    if not profiles:
+        print(f"{c.RED}Provide one or more profile names.{c.RESET}")
+        sys.exit(1)
+
+    # Validate
+    invalid = [p for p in profiles if p not in samlsts_profiles]
+    if invalid:
+        print(f"{c.RED}Profile(s) not found: {', '.join(invalid)}{c.RESET}")
+        sys.exit(1)
+
+    if args.pin_action == "add":
+        for p in profiles:
+            pin_profile(aws_dir, p)
+            print(f"  {c.GREEN}📌 Pinned: {p}{c.RESET}")
+    elif args.pin_action == "rm":
+        for p in profiles:
+            unpin_profile(aws_dir, p)
+            print(f"  {c.DIM}Unpinned: {p}{c.RESET}")
+
+
 def cmd_auth(args):
     """Authenticate a profile using the existing getCredentials.py flow."""
     if args.no_color or not supports_color():
@@ -459,7 +596,35 @@ def cmd_auth(args):
     # Determine which profiles to auth
     profiles_to_auth = []
 
-    if args.filter:
+    if getattr(args, "expired", False):
+        # Re-auth: all EXPIRING profiles + pinned profiles that are EXPIRED
+        pinned = load_pinned_profiles(aws_dir)
+        token_expirations = load_token_expirations(aws_dir)
+        now = datetime.now(timezone.utc)
+
+        seen = set()
+        # Any profile that is EXPIRING (pinned or not)
+        for p, exp in token_expirations.items():
+            if exp and exp > now and (exp - now) <= EXPIRING_THRESHOLD:
+                if p in samlsts_profiles:
+                    profiles_to_auth.append(p)
+                    seen.add(p)
+
+        # Pinned profiles that are EXPIRED (or have no expiration tracked)
+        for p in pinned:
+            if p in seen:
+                continue
+            exp = token_expirations.get(p)
+            if exp is None or exp <= now:
+                profiles_to_auth.append(p)
+                seen.add(p)
+
+        if not profiles_to_auth:
+            print(f"{c.GREEN}All profiles are valid. Nothing to re-auth.{c.RESET}")
+            sys.exit(0)
+        profiles_to_auth.sort(key=str.lower)
+        print(f"{c.DIM}Re-authing {len(profiles_to_auth)} profile(s) (expiring + pinned expired){c.RESET}")
+    elif args.filter:
         # Auth all profiles matching the filter
         filter_lower = args.filter.lower()
         profiles_to_auth = [p for p in samlsts_profiles if filter_lower in p.lower()]
@@ -473,7 +638,7 @@ def cmd_auth(args):
         # Single profile (positional)
         profiles_to_auth = [args.profile]
     else:
-        print(f"{c.RED}Provide a profile name, -p <profiles>, or -f <filter>{c.RESET}")
+        print(f"{c.RED}Provide a profile name, -p <profiles>, -f <filter>, or -x{c.RESET}")
         sys.exit(1)
 
     # Validate all profiles exist
@@ -494,6 +659,7 @@ def cmd_auth(args):
 
 def _batch_auth(profiles: list[str], args, aws_dir: Path, c):
     """Authenticate multiple profiles with shared SAML login (one MFA prompt per identity group)."""
+    quiet = getattr(args, "quiet", False)
     # Import batch_auth from the same directory
     script_dir = Path(__file__).resolve().parent
     if str(script_dir) not in sys.path:
@@ -501,16 +667,20 @@ def _batch_auth(profiles: list[str], args, aws_dir: Path, c):
 
     from batch_auth import perform_batch_auth
 
-    print(f"{c.BOLD}{c.CYAN}Batch authenticating {len(profiles)} profile(s) (shared login per identity group){c.RESET}\n")
+    if not quiet:
+        print(f"{c.BOLD}{c.CYAN}Batch authenticating {len(profiles)} profile(s) (shared login per identity group){c.RESET}\n")
 
     def status_cb(event, profile, message):
+        if event == "OK":
+            duration = get_session_duration(aws_dir, profile)
+            save_token_expiration(aws_dir, profile, duration)
+        if quiet:
+            return
         if event == "INFO":
             print(f"{c.DIM}{message}{c.RESET}")
         elif event == "LOGIN":
             print(f"\n{c.BOLD}{c.CYAN}{message}{c.RESET}\n")
         elif event == "OK":
-            duration = get_session_duration(aws_dir, profile)
-            save_token_expiration(aws_dir, profile, duration)
             print(f"  {c.GREEN}✓ {profile}{c.RESET} — {message}")
         elif event == "FAIL":
             print(f"  {c.RED}✗ {profile}{c.RESET} — {message}")
@@ -529,12 +699,16 @@ def _batch_auth(profiles: list[str], args, aws_dir: Path, c):
         # Summary
         succeeded = sum(1 for v in results.values() if v)
         failed = sum(1 for v in results.values() if not v)
-        print(f"\n{c.BOLD}Batch complete:{c.RESET} {c.GREEN}{succeeded} succeeded{c.RESET}", end="")
-        if failed:
-            print(f", {c.RED}{failed} failed{c.RESET}")
-        else:
+        if not quiet:
+            print(f"\n{c.BOLD}Batch complete:{c.RESET} {c.GREEN}{succeeded} succeeded{c.RESET}", end="")
+            if failed:
+                print(f", {c.RED}{failed} failed{c.RESET}")
+            else:
+                print()
             print()
-        print()
+
+        if failed:
+            sys.exit(1)
 
     except KeyboardInterrupt:
         print(f"\n{c.YELLOW}Cancelled.{c.RESET}")
@@ -543,6 +717,7 @@ def _batch_auth(profiles: list[str], args, aws_dir: Path, c):
 
 def _single_auth(profile: str, args, aws_dir: Path, c):
     """Authenticate a single profile via subprocess (preserves interactive password prompt)."""
+    quiet = getattr(args, "quiet", False)
     script_dir = Path(__file__).resolve().parent
     get_creds = script_dir / "getCredentials.py"
 
@@ -563,16 +738,22 @@ def _single_auth(profile: str, args, aws_dir: Path, c):
     if args.encrypted:
         cmd.append("--encrypted")
 
-    print(f"{c.BOLD}{c.CYAN}Authenticating profile: {profile}{c.RESET}\n")
+    if not quiet:
+        print(f"{c.BOLD}{c.CYAN}Authenticating profile: {profile}{c.RESET}\n")
 
     try:
-        result = subprocess.run(cmd, cwd=str(script_dir))
+        stdout_target = subprocess.DEVNULL if quiet else None
+        result = subprocess.run(cmd, cwd=str(script_dir), stdout=stdout_target, stderr=stdout_target)
         if result.returncode == 0:
             duration = get_session_duration(aws_dir, profile)
             save_token_expiration(aws_dir, profile, duration)
-            print(f"\n{c.GREEN}✓ Authentication successful for: {profile}{c.RESET}\n")
+            if not quiet:
+                if not quiet:
+                    print(f"\n{c.GREEN}✓ Authentication successful for: {profile}{c.RESET}\n")
         else:
-            print(f"\n{c.RED}✗ Authentication failed for: {profile} (exit code: {result.returncode}){c.RESET}\n")
+            if not quiet:
+                print(f"\n{c.RED}✗ Authentication failed for: {profile} (exit code: {result.returncode}){c.RESET}\n")
+            sys.exit(result.returncode)
     except KeyboardInterrupt:
         print(f"\n{c.YELLOW}Cancelled.{c.RESET}")
         sys.exit(130)
@@ -603,6 +784,12 @@ def main():
         action="store_true",
         help="Disable color output",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output status as JSON (for scripting/agents)",
+    )
     # Top-level filter/profile flags so 'samlstat -f prod' works without 'status' subcommand
     parser.add_argument(
         "-f", "--filter",
@@ -621,7 +808,7 @@ def main():
     parser.add_argument(
         "-x", "--expired",
         action="store_true",
-        help="Show only EXPIRED profiles",
+        help="Show EXPIRED and EXPIRING profiles",
     )
     parser.add_argument(
         "-p", "--profile",
@@ -658,7 +845,7 @@ def main():
     status_parser.add_argument(
         "-x", "--expired",
         action="store_true",
-        help="Show only EXPIRED profiles",
+        help="Show EXPIRED and EXPIRING profiles",
     )
     status_parser.add_argument(
         "-p", "--profile",
@@ -675,6 +862,7 @@ def main():
   samlstat auth natldev-tier1                     single profile
   samlstat auth -p natldev-tier1 natlprod-tier1   multiple profiles
   samlstat auth -f tier1                          all profiles matching filter
+  samlstat auth -x                                re-auth expired/expiring pinned profiles
   samlstat auth -f prod --encrypted               with encrypted output""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -691,6 +879,11 @@ def main():
     auth_parser.add_argument(
         "-f", "--filter",
         help="Authenticate all profiles matching this filter (case-insensitive substring)",
+    )
+    auth_parser.add_argument(
+        "-x", "--expired",
+        action="store_true",
+        help="Re-auth all pinned profiles that are EXPIRED or EXPIRING",
     )
     auth_parser.add_argument(
         "--fastpass", "-fp",
@@ -722,6 +915,11 @@ def main():
         action="store_true",
         help="Display encrypted credentials after auth",
     )
+    auth_parser.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        help="Suppress output except errors (exit 0=success, 1=failure)",
+    )
 
     # --- creds ---
     creds_parser = subparsers.add_parser(
@@ -752,12 +950,50 @@ def main():
         help="Show encrypted creds for all profiles matching this filter",
     )
 
+    # --- pin ---
+    pin_parser = subparsers.add_parser(
+        "pin",
+        help="Pin/unpin profiles for use with 'auth -x'",
+        description="Manage pinned profiles. Pinned profiles are re-authed by 'samlstat auth -x'.",
+        epilog="""examples:
+  samlstat pin natldev-tier1 natlprod-tier1    pin profiles
+  samlstat pin -d natldev-tier1               unpin a profile
+  samlstat pin -l                             list pinned profiles""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pin_parser.add_argument(
+        "pin_profiles",
+        nargs="*",
+        help="Profile(s) to pin",
+    )
+    pin_parser.add_argument(
+        "-d", "--delete",
+        action="store_true",
+        help="Unpin the specified profiles",
+    )
+    pin_parser.add_argument(
+        "-l", "--list",
+        action="store_true",
+        help="List all pinned profiles",
+    )
+
     args = parser.parse_args()
+
+    # Determine pin action
+    if args.command == "pin":
+        if args.list:
+            args.pin_action = "list"
+        elif args.delete:
+            args.pin_action = "rm"
+        else:
+            args.pin_action = "add"
 
     if args.command in ("auth", "a"):
         cmd_auth(args)
     elif args.command in ("creds", "c"):
         cmd_creds(args)
+    elif args.command == "pin":
+        cmd_pin(args)
     elif getattr(args, "creds", False):
         # Top-level -c flag
         cmd_creds(args)
