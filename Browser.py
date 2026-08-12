@@ -93,6 +93,12 @@ def download_gecko_driver():
                 os.remove(local_file)
             except FileNotFoundError:
                 pass
+            except PermissionError as e:
+                log_stream.critical('Unable to replace geckodriver - it may still be locked by a '
+                                     'running driver process. Close any running browser sessions '
+                                     'started by this tool and try again.')
+                log_stream.critical(str(e))
+                return False
             if operating_system == 'windows':
                 extracted = Utilities.extract_zip_archive(driver_archive)
             else:
@@ -150,6 +156,12 @@ def download_edgedriver():
             os.remove(local_file)
         except FileNotFoundError:
             pass
+        except PermissionError as e:
+            log_stream.critical('Unable to replace msedgedriver - it may still be locked by a '
+                                 'running driver process. Close any running browser sessions '
+                                 'started by this tool and try again.')
+            log_stream.critical(str(e))
+            return False
         extracted = Utilities.extract_zip_archive(driver_archive)
         if extracted:
             make_driver_executable(local_file)
@@ -194,6 +206,12 @@ def download_chromedriver():
             os.remove(local_file)
         except FileNotFoundError:
             pass
+        except PermissionError as e:
+            log_stream.critical('Unable to replace chromedriver - it may still be locked by a '
+                                 'running driver process. Close any running browser sessions '
+                                 'started by this tool and try again.')
+            log_stream.critical(str(e))
+            return False
         extracted = Utilities.extract_zip_archive(driver_archive)
         if extracted:
             make_driver_executable(local_file)

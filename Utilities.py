@@ -152,6 +152,13 @@ def extract_zip_archive(archive_file_name):
     except zipfile.BadZipfile as e:
         log_stream.critical(str(e))
         return False
+    except PermissionError as e:
+        log_stream.critical('Unable to replace driver file - it may still be locked by a running '
+                             'driver process (e.g. a previous chromedriver/msedgedriver instance that '
+                             'was never terminated). Close any running browser sessions started by this '
+                             'tool and try again.')
+        log_stream.critical(str(e))
+        return False
     os.remove(archive_file_name)
     return True
 
