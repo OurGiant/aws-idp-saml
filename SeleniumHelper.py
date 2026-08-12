@@ -4,6 +4,8 @@ Selenium helper utilities to reduce code duplication and improve maintainability
 Provides common patterns for element interaction and waiting.
 """
 
+import time
+
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common import exceptions as se
@@ -125,6 +127,41 @@ class SeleniumHelper:
         except se.TimeoutException:
             log_stream.warning(f'Timeout waiting for element {label}')
             raise
+
+    def poll_page_source_with_backoff(self, needle: str, max_total_seconds: float, label: str = "",
+                                       initial_delay: float = 1, max_delay: float = 4, backoff_factor: float = 2):
+        """
+        Poll the page source for a substring, backing off exponentially between
+        attempts instead of checking once after a single fixed-duration wait.
+        Slow-rendering pages (e.g. Okta's factor-selection screen on Firefox)
+        get repeated chances to finish rendering, while fast pages return on
+        the first attempt. Bounded by an overall deadline so it always finishes.
+
+        Args:
+            needle (str): Substring to search for in the page source
+            max_total_seconds (float): Overall deadline for polling, in seconds
+            label (str, optional): Description for logging
+            initial_delay (float): Seconds to wait before the first retry
+            max_delay (float): Cap on the delay between retries
+            backoff_factor (float): Multiplier applied to the delay after each miss
+
+        Returns:
+            bool: True if the substring was found before the deadline, False otherwise
+        """
+        deadline = time.monotonic() + max_total_seconds
+        delay = initial_delay
+        attempt = 0
+        while True:
+            attempt += 1
+            if needle in self.driver.page_source:
+                log_stream.debug(f'Found {label} in page source on attempt {attempt}')
+                return True
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                log_stream.warning(f'Timeout waiting for {label} in page source after {attempt} attempts')
+                return False
+            time.sleep(min(delay, remaining))
+            delay = min(delay * backoff_factor, max_delay)
 
     def wait_for_url_contains(self, url_fragment: str):
         """

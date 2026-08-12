@@ -14,6 +14,7 @@ from SeleniumHelper import SeleniumHelper
 log_stream = Logging('providers')
 
 saml_page_title = "Amazon Web Services Sign-In"
+mfa_screen_indicator = 'class="button select-factor link-button"'
 xpath_locator = By.XPATH
 class_name_locator = By.CLASS_NAME
 id_locator = By.ID
@@ -44,19 +45,16 @@ def check_for_mfa_screen(driver, wait, use_okta_fastpass):
         return False, None 
 
     try:
-        # Check if page source contains the isMfa flag in modelDataBag
-        # This is the most reliable indicator from Okta
-        page_source = driver.page_source
-        
+        # Check if page source contains the isMfa flag in modelDataBag.
+        # This is the most reliable indicator from Okta. Poll with backoff
+        # rather than checking once, since the factor-selection markup can
+        # render after "Back to sign in" is already present (seen on Firefox).
         log_stream.debug('Checking for MFA screen indicators in page source')
-        if ('class="button select-factor link-button"' in page_source):
+        helper = SeleniumHelper(driver, short_wait)
+        if helper.poll_page_source_with_backoff(mfa_screen_indicator, max_total_seconds=20, label="MFA screen indicator"):
             log_stream.info('MFA screen detected - fully managed device, skipping username and password entry')
             ScreenshotRecorder.capture(driver, "managed_device_mfa_screen")
-            
-            # Give the page a moment to fully render the MFA options
-            import time
-            time.sleep(1)
-            
+
             # Click the appropriate MFA button
             if use_okta_fastpass:
                 saml_response = click_okta_fastpass(wait, driver)
@@ -84,24 +82,19 @@ def check_for_intermediate_verify_screen(driver, wait):
         return False, None 
 
     try:
-        page_source = driver.page_source
-        
         log_stream.debug('Checking for intermediate screen indicators in page source')
-        if ('class="button select-factor link-button"' in page_source):
+        helper = SeleniumHelper(driver, short_wait)
+        if helper.poll_page_source_with_backoff(mfa_screen_indicator, max_total_seconds=8, label="intermediate screen indicator"):
             log_stream.info('Intermediate screen detected - select Password option')
             ScreenshotRecorder.capture(driver, "managed_device_intermediate_screen")
-            
-            # Give the page a moment to fully render the Verify options
-            import time
-            time.sleep(1)
-            
+
             # Click the appropriate MFA button
             click_use_password(wait, driver)
-                
+
             return True
-        
+
         return False
-        
+
     except Exception as e:
         log_stream.warning(f'Error checking for intermediate screen: {str(e)}')
         # On any error, assume we're not on intermediate screen and continue normal flow
