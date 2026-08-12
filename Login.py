@@ -65,48 +65,64 @@ def browser_login(username, password, first_page, use_debug, use_gui, browser, s
                   idp_login_title, iam_role, gui_name, dsso_url,use_okta_fastpass) -> str:
 
     completed_login: bool = False
+    keep_browser_open = False
 
     driver, is_driver_loaded = Browser.setup_browser(browser, use_debug)
 
-    if is_driver_loaded is True:
-        if use_debug is True:
-            driver.set_window_size(1024, 768)
+    try:
+        if is_driver_loaded is True:
+            if use_debug is True:
+                driver.set_window_size(1024, 768)
 
-        wait = WebDriverWait(driver, constants.__timeout__)
-        driver.get(first_page)
-        try:
-            wait.until(ec.title_contains("Sign"))
-        except se.TimeoutException:
-            saml_response = "CouldNameLoadSignInPage"
-            return str(saml_response)
+            wait = WebDriverWait(driver, constants.__timeout__)
+            driver.get(first_page)
+            try:
+                wait.until(ec.title_contains("Sign"))
+            except se.TimeoutException:
+                saml_response = "CouldNameLoadSignInPage"
+                return str(saml_response)
 
-        log_stream.info('Sign In Page Title is ' + driver.title)
+            log_stream.info('Sign In Page Title is ' + driver.title)
 
-        if driver.title == idp_login_title:
-            # if saml_provider_name == 'PING':
-            #     completed_login = Providers.UseIdP.ping_sign_in(wait, driver, username, password)
-            if saml_provider_name == 'OKTA':
-                completed_login = Providers.UseIdP.okta_sign_in(wait, driver, username, password, dsso_url, use_okta_fastpass)
-        elif driver.title == "Amazon Web Services Sign-In":
-            completed_login = True
-        else:
-            saml_response = "WrongLoginPageTitle"
-            completed_login = False
-            return saml_response
-
-        if completed_login is True:
-            log_stream.info('Waiting for SAML Response.')
-            saml_response, design = get_saml_response(driver)
-            if saml_response is None:
-                saml_response = "SAMLResponseTimeout"
-                return saml_response
-            if use_gui is not True:
-                driver.close()
+            if driver.title == idp_login_title:
+                # if saml_provider_name == 'PING':
+                #     completed_login = Providers.UseIdP.ping_sign_in(wait, driver, username, password)
+                if saml_provider_name == 'OKTA':
+                    completed_login = Providers.UseIdP.okta_sign_in(wait, driver, username, password, dsso_url, use_okta_fastpass)
+            elif driver.title == "Amazon Web Services Sign-In":
+                completed_login = True
             else:
-                SAMLSelector.select_role_from_saml_page(driver, gui_name, iam_role, design)
+                saml_response = "WrongLoginPageTitle"
+                completed_login = False
+                return saml_response
+
+            if completed_login is True:
+                log_stream.info('Waiting for SAML Response.')
+                saml_response, design = get_saml_response(driver)
+                if saml_response is None:
+                    saml_response = "SAMLResponseTimeout"
+                    return saml_response
+                if use_gui is not True:
+                    driver.close()
+                else:
+                    SAMLSelector.select_role_from_saml_page(driver, gui_name, iam_role, design)
+                    # Leave the browser open so the user can use the live, role-selected session
+                    keep_browser_open = True
+            else:
+                saml_response = "CouldNotCompleteMFA"
         else:
-            saml_response = "CouldNotCompleteMFA"
-    else:
-        saml_response = "CouldNotLoadWebDriver"
+            saml_response = "CouldNotLoadWebDriver"
+    finally:
+        # driver.close() above only closes the current window/tab - it leaves the
+        # driver service process (chromedriver.exe etc.) running. On Windows that
+        # process holds an exclusive lock on its own executable, which then blocks
+        # future driver downloads/replacements. quit() stops the session and the
+        # driver service, so always run it except when the caller asked to keep
+        # the browser open (--gui).
+        if is_driver_loaded and driver is not None and not keep_browser_open:
+            try:
+                driver.quit()
+            except Exception as e:
+                log_stream.warning(f'Error while closing browser driver session: {str(e)}')
 
     return str(saml_response)

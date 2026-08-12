@@ -144,9 +144,19 @@ def extract_zip_archive(archive_file_name):
             zip_ref.extractall(path='drivers/')
             if len(zip_ref.namelist()[0].split('/')) > 1:
                 for file in os.listdir(f'drivers/{archive_root}/'):
-                    shutil.move(f'drivers/{archive_root}/{file}', 'drivers/')
+                    destination = f'drivers/{file}'
+                    if os.path.exists(destination):
+                        os.remove(destination)
+                    shutil.move(f'drivers/{archive_root}/{file}', destination)
                 shutil.rmtree(f'drivers/{archive_root}/')
     except zipfile.BadZipfile as e:
+        log_stream.critical(str(e))
+        return False
+    except PermissionError as e:
+        log_stream.critical('Unable to replace driver file - it may still be locked by a running '
+                             'driver process (e.g. a previous chromedriver/msedgedriver instance that '
+                             'was never terminated). Close any running browser sessions started by this '
+                             'tool and try again.')
         log_stream.critical(str(e))
         return False
     os.remove(archive_file_name)
