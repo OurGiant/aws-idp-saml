@@ -1,6 +1,6 @@
 [project]
 name = "aws-idp-saml"
-version = "1.0"
+version = "2.2.0"
 description = "Log into your IdP and retrieve a SAML assertion for AWS. Use SAML assertion to assume an AWS role for use with SDK and CLI."
 requires-python = ">=3.12"
 dependencies = [
@@ -24,7 +24,7 @@ py-modules = ["samlstat"]
 
 [tool.poetry]
 name = "aws-idp-saml"
-version = "1.0"
+version = "2.2.0"
 description = "Log into your IdP and retrieve a SAML assertion for AWS. Use SAML assertion to assume an AWS role for use with SDK and CLI."
 authors = ["Ryan Leach <no-reply@gmail.com>"]
 packages = [{include = "samlstat.py"}]
