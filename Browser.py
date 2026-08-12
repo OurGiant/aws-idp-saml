@@ -36,6 +36,20 @@ def gecko_from_snap():
     return driver_loc, binary_loc
 
 
+def make_driver_executable(driver_path):
+    """
+    Ensure the driver binary has the execute bit set.
+
+    Downloaded driver archives (notably Chrome for Testing's chromedriver
+    zips) don't reliably embed the executable permission bit, so Selenium
+    can fail to launch a freshly-extracted driver until this is applied.
+    """
+    try:
+        os.chmod(driver_path, 0o755)
+    except OSError as e:
+        log_stream.warning(f'Unable to set executable permission on {driver_path}: {str(e)}')
+
+
 def missing_browser_message(user_browser, error):
     message = f'There is something wrong with the driver installed for {user_browser}.'
     message += 'Please refer to the documentation in the README on how to download and '
@@ -80,10 +94,12 @@ def download_gecko_driver():
             except FileNotFoundError:
                 pass
             if operating_system == 'windows':
-                return Utilities.extract_zip_archive(driver_archive)
-
-            if operating_system != 'windows':
-                return Utilities.extract_tgz_archive(driver_archive)
+                extracted = Utilities.extract_zip_archive(driver_archive)
+            else:
+                extracted = Utilities.extract_tgz_archive(driver_archive)
+            if extracted:
+                make_driver_executable(local_file)
+            return extracted
         else:
             log_stream.critical('Unable to download gecko driver for Firefox')
             return False
@@ -134,7 +150,10 @@ def download_edgedriver():
             os.remove(local_file)
         except FileNotFoundError:
             pass
-        return Utilities.extract_zip_archive(driver_archive)
+        extracted = Utilities.extract_zip_archive(driver_archive)
+        if extracted:
+            make_driver_executable(local_file)
+        return extracted
     else:
         log_stream.critical('Unable to download msedgedriver for Edge')
         return False
@@ -175,7 +194,10 @@ def download_chromedriver():
             os.remove(local_file)
         except FileNotFoundError:
             pass
-        return Utilities.extract_zip_archive(driver_archive)
+        extracted = Utilities.extract_zip_archive(driver_archive)
+        if extracted:
+            make_driver_executable(local_file)
+        return extracted
     else:
         log_stream.critical('Unable to download chromedriver for Chrome')
         return False
@@ -218,14 +240,6 @@ def verify_drivers(user_browser):
         driver_executable = str(drivers + constants.edge_local_file[operating_system])
 
     return driver_executable
-
-
-def check_driver_compatibility(driver_path):
-    """Check if the driver exists and is executable."""
-    if Path(driver_path).is_file():
-        # Basic check - file exists and is executable
-        return os.access(driver_path, os.X_OK)
-    return False
 
 
 def browser_debugging_options(options, user_browser):
@@ -289,10 +303,10 @@ def setup_browser(user_browser, use_debug):
             is_driver_loaded = True
         except se.WebDriverException as e:
             log_stream.critical(str(e))
-            # Only download if driver doesn't exist or isn't compatible
-            if not check_driver_compatibility(driver_executable):
-                log_stream.info('Attempting to download the latest geckodriver')
-                download_gecko_driver()
+            # A stale or broken driver on disk still fails, so always fetch a
+            # fresh one on the retry rather than reusing whatever is present
+            log_stream.info('Attempting to download the latest geckodriver')
+            download_gecko_driver()
             firefox_service = FirefoxService(executable_path=driver_executable)
             try:
                 driver = webdriver.Firefox(service=firefox_service, options=browser_options)
@@ -323,10 +337,10 @@ def setup_browser(user_browser, use_debug):
             is_driver_loaded = True
         except se.WebDriverException as e:
             log_stream.critical(str(e))
-            # Only download if driver doesn't exist or isn't compatible
-            if not check_driver_compatibility(driver_executable):
-                log_stream.info('Attempting to download the latest chromedriver')
-                download_chromedriver()
+            # A stale or broken driver on disk still fails, so always fetch a
+            # fresh one on the retry rather than reusing whatever is present
+            log_stream.info('Attempting to download the latest chromedriver')
+            download_chromedriver()
             chrome_service = ChromeService(executable_path=driver_executable)
             try:
                 driver = webdriver.Chrome(service=chrome_service, options=browser_options)
@@ -355,10 +369,10 @@ def setup_browser(user_browser, use_debug):
             is_driver_loaded = True
         except se.WebDriverException as e:
             log_stream.critical(str(e))
-            # Only download if driver doesn't exist or isn't compatible
-            if not check_driver_compatibility(driver_executable):
-                log_stream.info('Attempting to download the latest msedgedriver')
-                download_edgedriver()
+            # A stale or broken driver on disk still fails, so always fetch a
+            # fresh one on the retry rather than reusing whatever is present
+            log_stream.info('Attempting to download the latest msedgedriver')
+            download_edgedriver()
             edge_service = EdgeService(executable_path=driver_executable)
             try:
                 driver = webdriver.Edge(service=edge_service, options=browser_options)

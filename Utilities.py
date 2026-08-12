@@ -144,7 +144,10 @@ def extract_zip_archive(archive_file_name):
             zip_ref.extractall(path='drivers/')
             if len(zip_ref.namelist()[0].split('/')) > 1:
                 for file in os.listdir(f'drivers/{archive_root}/'):
-                    shutil.move(f'drivers/{archive_root}/{file}', 'drivers/')
+                    destination = f'drivers/{file}'
+                    if os.path.exists(destination):
+                        os.remove(destination)
+                    shutil.move(f'drivers/{archive_root}/{file}', destination)
                 shutil.rmtree(f'drivers/{archive_root}/')
     except zipfile.BadZipfile as e:
         log_stream.critical(str(e))
