@@ -2,10 +2,7 @@
 import argparse
 import os
 import sys
-import tarfile
-import zipfile
 from pathlib import Path
-import shutil
 
 import constants
 import Config
@@ -134,102 +131,6 @@ class Arguments:
         return self.use_okta_fastpass, self.use_debug, self.use_gui, self.browser_type, self.aws_profile_name, \
             self.store_password, self.session_duration, self.aws_region, self.text_menu, self.use_idp, self.username, \
             self.args.encrypted, self.args.enable_screenshots, self.args.screenshot_dir, self.args.show_credentials
-
-
-def extract_zip_archive(archive_file_name):
-    try:
-        log_stream.info(f'unzip driver archive {archive_file_name}')
-        with zipfile.ZipFile(archive_file_name, 'r') as zip_ref:
-            archive_root = zip_ref.namelist()[0].split('/')[0]
-            zip_ref.extractall(path='drivers/')
-            if len(zip_ref.namelist()[0].split('/')) > 1:
-                for file in os.listdir(f'drivers/{archive_root}/'):
-                    destination = f'drivers/{file}'
-                    if os.path.exists(destination):
-                        os.remove(destination)
-                    shutil.move(f'drivers/{archive_root}/{file}', destination)
-                shutil.rmtree(f'drivers/{archive_root}/')
-    except zipfile.BadZipfile as e:
-        log_stream.critical(str(e))
-        return False
-    except PermissionError as e:
-        log_stream.critical('Unable to replace driver file - it may still be locked by a running '
-                             'driver process (e.g. a previous chromedriver/msedgedriver instance that '
-                             'was never terminated). Close any running browser sessions started by this '
-                             'tool and try again.')
-        log_stream.critical(str(e))
-        return False
-    os.remove(archive_file_name)
-    return True
-
-
-def extract_tgz_archive(archive_file_name):
-    """
-    Safely extract a tar.gz archive with protection against Tar Slip attacks.
-    Uses member-by-member extraction to prevent arbitrary file writes.
-    
-    Args:
-        archive_file_name (str): Path to the tar.gz file to extract
-        
-    Returns:
-        bool: True if extraction successful, False otherwise
-    """
-    import sys
-    
-    try:
-        log_stream.info(f'untar driver archive {archive_file_name}')
-        
-        with tarfile.open(archive_file_name, 'r:gz') as tar_ref:
-            # Validate and extract members individually
-            for member in tar_ref.getmembers():
-                # Check for absolute paths
-                if member.name.startswith('/'):
-                    raise ValueError(f"Unsafe tar extraction: absolute path {member.name}")
-                
-                # Check for directory traversal attempts
-                if '..' in member.name:
-                    raise ValueError(f"Unsafe tar extraction: path traversal attempt {member.name}")
-                
-                # Verify the extracted path stays within drivers directory
-                member_path = os.path.abspath(os.path.join('drivers/', member.name))
-                drivers_path = os.path.abspath('drivers/')
-                
-                if not member_path.startswith(drivers_path + os.sep) and member_path != drivers_path:
-                    raise ValueError(f"Unsafe tar extraction: {member.name} would extract outside drivers/")
-                
-                # Check for symlinks (can be used for attacks)
-                if member.issym() or member.islnk():
-                    log_stream.warning(f"Skipping symlink/hardlink: {member.name}")
-                    continue
-                
-                # Extract individual member safely
-                tar_ref.extract(member, path='drivers/')
-            
-            log_stream.info('Archive extracted successfully')
-            
-    except tarfile.ReadError as e:
-        log_stream.critical(f'Error reading archive: {str(e)}')
-        return False
-    except tarfile.ExtractError as e:
-        log_stream.critical(f'Error extracting archive: {str(e)}')
-        return False
-    except tarfile.TarError as e:
-        log_stream.critical(f'Tar error: {str(e)}')
-        return False
-    except ValueError as e:
-        log_stream.critical(f'Security validation failed: {str(e)}')
-        return False
-    finally:
-        try:
-            os.remove(archive_file_name)
-        except OSError as e:
-            log_stream.warning(f'Could not remove archive file: {str(e)}')
-    
-    return True
-
-
-def get_script_exec_path():
-    return str(Path(__file__).resolve().parents[0])
 
 
 def check_if_container():

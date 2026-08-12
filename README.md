@@ -10,7 +10,6 @@ Log into your Identity Provider (IdP) via a headless browser, retrieve a SAML as
   - [Dependencies](#dependencies)
   - [samlstat CLI (optional)](#samlstat-cli-optional)
   - [Browser Drivers](#browser-drivers)
-  - [macOS Quarantine Fix](#macos-quarantine-fix)
 - [Configuration](#configuration)
   - [First Run (No Config File)](#first-run-no-config-file)
   - [Manual Configuration](#manual-configuration)
@@ -107,25 +106,9 @@ After installation, `samlstat` is available system-wide regardless of which dire
 
 ### Browser Drivers
 
-The utility will attempt to download the correct driver for your chosen browser automatically. If you prefer to install manually:
-
-- Chrome: download from [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)
-- Firefox: download from [geckodriver releases](https://github.com/mozilla/geckodriver/releases)
-- Edge: download from [Microsoft Edge WebDriver](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/)
-
-Place the driver in the `drivers/` directory at the root of the project. On Windows, drivers have the `.exe` extension. On macOS and Linux they do not.
+Driver management is handled automatically by [Selenium Manager](https://www.selenium.dev/documentation/selenium_manager/), which ships with Selenium itself. It detects your installed browser, downloads a matching driver, and caches it - there's nothing to download or place manually, and no `drivers/` directory to manage.
 
 Chromium may not be fully supported by the Chrome driver. If you only have Chromium installed, reference the browser as `chrome`.
-
-### macOS Quarantine Fix
-
-macOS may block downloaded drivers with a security warning. Remove the quarantine attribute:
-
-```bash
-xattr -d com.apple.quarantine drivers/chromedriver
-```
-
-This also works for `geckodriver`.
 
 ## Configuration
 
@@ -433,7 +416,7 @@ The `"$@"` passes all remaining arguments through, so any flag combination works
 - If you access many accounts, start with `--textmenu` to build up your `~/.aws/samlsts` and `~/.aws/account-map.json` files. Once populated, switch to `--profilename` for faster repeat access.
 - The `--debug` flag opens a visible browser window so you can watch the login flow. Useful when troubleshooting MFA or page-load issues.
 - On corporate networks with SSL inspection, Python may reject your IdP's certificate. Install `pip-system-certs` (`pip install pip-system-certs`) to use your OS trust store.
-- If the Chrome driver version falls out of sync with your browser, the utility will attempt to download the correct version automatically.
+- If the Chrome driver version falls out of sync with your browser, Selenium Manager will fetch a matching version automatically on the next run.
 
 ### Docker
 

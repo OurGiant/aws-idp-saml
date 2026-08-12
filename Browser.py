@@ -1,15 +1,10 @@
-import json
 import os
-import re
-import sys
 from pathlib import Path
-import requests
 
 from selenium import webdriver
 from selenium.common import exceptions as se
 
 import constants
-import Utilities
 from Logging import Logging
 from OSInfo import OSInfo
 
@@ -20,7 +15,6 @@ operating_system = os_info.which_os()
 operating_system_type = os_info.which_os_type()
 
 selenium_timeout = constants.__timeout__
-script_execute_path = Utilities.get_script_exec_path()
 
 
 def gecko_from_snap():
@@ -36,234 +30,17 @@ def gecko_from_snap():
     return driver_loc, binary_loc
 
 
-def make_driver_executable(driver_path):
-    """
-    Ensure the driver binary has the execute bit set.
-
-    Downloaded driver archives (notably Chrome for Testing's chromedriver
-    zips) don't reliably embed the executable permission bit, so Selenium
-    can fail to launch a freshly-extracted driver until this is applied.
-    """
-    try:
-        os.chmod(driver_path, 0o755)
-    except OSError as e:
-        log_stream.warning(f'Unable to set executable permission on {driver_path}: {str(e)}')
-
-
 def missing_browser_message(user_browser, error):
-    message = f'There is something wrong with the driver installed for {user_browser}.'
-    message += 'Please refer to the documentation in the README on how to download and '
-    message += 'install the correct driver for your operating system ' + operating_system
+    message = f'There is something wrong with the browser installation for {user_browser}, or Selenium Manager '
+    message += 'was unable to obtain a matching driver. Please refer to the documentation in the README on how '
+    message += 'to install ' + user_browser + ' for your operating system ' + operating_system
     log_stream.critical(message)
     log_stream.critical(str(error))
-
-
-def get_gecko_latest_version():
-    gecko_download_url = None
-    latest_version_url = constants.__mozilla_driver_url__
-    request_response = requests.get(latest_version_url)
-    gekco_releases = json.loads(request_response.content.decode())
-    os_download_patterns = re.compile(f'.*{constants.gecko_remote_patterns[operating_system]}$')
-    for asset in gekco_releases[0]['assets']:
-        if os_download_patterns.match(asset['name']):
-            gecko_download_url = asset['browser_download_url']
-            break
-    if gecko_download_url is not None:
-        return gecko_download_url
-    else:
-        log_stream.critical('Unable to download gecko driver for Firefox')
-        return None
-
-
-def download_gecko_driver():
-    gecko_download_url = get_gecko_latest_version()
-    if gecko_download_url is not None:
-        try:
-            get_driver = requests.get(gecko_download_url)
-        except requests.exceptions.RequestException as e:
-            log_stream.critical('Unable to download driver. ' + str(e))
-            return
-        if get_driver.status_code == 200:
-            with open('drivers/' + constants.gecko_local_archive[operating_system], 'wb') as driver_file:
-                driver_file.write(get_driver.content)
-            driver_file.close()
-            driver_archive = 'drivers/' + constants.gecko_local_archive[operating_system]
-            local_file = 'drivers/' + constants.gecko_local_file[operating_system]
-            try:
-                os.remove(local_file)
-            except FileNotFoundError:
-                pass
-            except PermissionError as e:
-                log_stream.critical('Unable to replace geckodriver - it may still be locked by a '
-                                     'running driver process. Close any running browser sessions '
-                                     'started by this tool and try again.')
-                log_stream.critical(str(e))
-                return False
-            if operating_system == 'windows':
-                extracted = Utilities.extract_zip_archive(driver_archive)
-            else:
-                extracted = Utilities.extract_tgz_archive(driver_archive)
-            if extracted:
-                make_driver_executable(local_file)
-            return extracted
-        else:
-            log_stream.critical('Unable to download gecko driver for Firefox')
-            return False
-    else:
-        log_stream.critical('Unable to download gecko driver for Firefox')
-        return False
-
-
-def get_chrome_latest_version():
-    latest_version_url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
-    request_response = requests.get(latest_version_url)
-    chrome_driver_json = json.loads(request_response.content.decode())
-    latest_chrome_driver_version = chrome_driver_json['channels']['Stable']['version']
-    latest_chrome_driver_artifacts = chrome_driver_json['channels']['Stable']['downloads']['chromedriver']
-    return latest_chrome_driver_version, latest_chrome_driver_artifacts
-
-
-def get_edge_latest_version():
-    latest_version_url = "https://msedgedriver.microsoft.com/LATEST_STABLE"
-    request_response = requests.get(latest_version_url)
-    latest_edge_driver_version = request_response.content.decode('utf-16').strip()
-    return latest_edge_driver_version
-
-
-def download_edgedriver():
-    version = get_edge_latest_version()
-    platform_map = {
-        "windows": "win64",
-        "linux": "linux64",
-        "macos": "mac64"
-    }
-    platform = platform_map.get(operating_system)
-    if not platform:
-        log_stream.critical('Unsupported operating system for Edge driver download')
-        return False
-    
-    edge_driver_download_url = f"https://msedgedriver.microsoft.com/{version}/edgedriver_{platform}.zip"
-    
-    log_stream.info('Downloading Edge driver from ' + edge_driver_download_url)
-    get_driver = requests.get(edge_driver_download_url)
-    driver_archive = 'drivers/' + constants.edge_remote_files[operating_system]
-    if get_driver.status_code == 200:
-        with open(driver_archive, 'wb') as driver_file:
-            driver_file.write(get_driver.content)
-        driver_file.close()
-        local_file = 'drivers/' + constants.edge_local_file[operating_system]
-        try:
-            os.remove(local_file)
-        except FileNotFoundError:
-            pass
-        except PermissionError as e:
-            log_stream.critical('Unable to replace msedgedriver - it may still be locked by a '
-                                 'running driver process. Close any running browser sessions '
-                                 'started by this tool and try again.')
-            log_stream.critical(str(e))
-            return False
-        extracted = Utilities.extract_zip_archive(driver_archive)
-        if extracted:
-            make_driver_executable(local_file)
-        return extracted
-    else:
-        log_stream.critical('Unable to download msedgedriver for Edge')
-        return False
-
-
-def download_chromedriver():
-    version, artifacts = get_chrome_latest_version()
-    platform_map = {
-        "windows": "win32",
-        "linux": "linux64", 
-        "macos": "mac64"
-    }
-    platform = platform_map.get(operating_system)
-    if not platform:
-        log_stream.critical('Unsupported operating system for Chrome driver download')
-        return False
-    
-    # Find the correct download URL for this platform
-    download_url = None
-    for artifact in artifacts:
-        if artifact.get('platform') == platform:
-            download_url = artifact.get('url')
-            break
-    
-    if not download_url:
-        log_stream.critical('Unable to find Chrome driver download URL for platform: ' + platform)
-        return False
-    
-    log_stream.info('Downloading Chrome driver from ' + download_url)
-    get_driver = requests.get(download_url)
-    driver_archive = 'drivers/' + constants.chrome_remote_files[operating_system]
-    if get_driver.status_code == 200:
-        with open(driver_archive, 'wb') as driver_file:
-            driver_file.write(get_driver.content)
-        driver_file.close()
-        local_file = 'drivers/' + constants.chrome_local_file[operating_system]
-        try:
-            os.remove(local_file)
-        except FileNotFoundError:
-            pass
-        except PermissionError as e:
-            log_stream.critical('Unable to replace chromedriver - it may still be locked by a '
-                                 'running driver process. Close any running browser sessions '
-                                 'started by this tool and try again.')
-            log_stream.critical(str(e))
-            return False
-        extracted = Utilities.extract_zip_archive(driver_archive)
-        if extracted:
-            make_driver_executable(local_file)
-        return extracted
-    else:
-        log_stream.critical('Unable to download chromedriver for Chrome')
-        return False
-
-
-def verify_drivers(user_browser):
-    drivers = None
-    driver_executable = None
-    if user_browser not in constants.valid_browsers:
-        log_stream.fatal('unknown browser specified.browsers currently supported:')
-        log_stream.fatal(','.join(constants.valid_browsers))
-        raise SystemExit(1)
-
-    driver_files = None
-    if operating_system == 'linux' or operating_system == 'macos':
-        os.environ['PATH'] += f":{script_execute_path}/drivers"
-        drivers = f"{script_execute_path}/drivers/"
-
-    elif operating_system == 'windows':
-        os.environ['PATH'] += f";{script_execute_path}\\drivers\\"
-        drivers = f"{script_execute_path}\\drivers\\"
-    else:
-        log_stream.fatal('Unknown OS type ' + sys.platform)
-        raise SystemExit(1)
-
-    if Path(drivers).is_dir() is False:
-        log_stream.critical('Missing drivers directory')
-        log_stream.info('Creating drivers directory')
-        try:
-            os.makedirs(drivers, exist_ok=True)
-        except OSError as e:
-            log_stream.critical('Unable to create drivers directory')
-            log_stream.critical(str(e))
-
-    if user_browser == 'chrome':
-        driver_executable = str(drivers + constants.chrome_local_file[operating_system])
-    if user_browser == 'firefox':
-        driver_executable = str(drivers + constants.gecko_local_file[operating_system])
-    if user_browser == 'edge':
-        driver_executable = str(drivers + constants.edge_local_file[operating_system])
-
-    return driver_executable
 
 
 def browser_debugging_options(options, user_browser):
     options.add_argument("--no-sandbox")
     if user_browser == "chrome" or user_browser == "edge":
-        options.set_capability("browserVersion", "120")
         options.add_argument("--headless=new")
         # Suppress internal browser error messages
         options.add_argument("--log-level=3")  # Only show fatal errors
@@ -281,17 +58,20 @@ def browser_debugging_options(options, user_browser):
 def setup_browser(user_browser, use_debug):
     """Sets up and returns a Selenium webdriver instance for the specified browser.
 
+    Driver acquisition is delegated entirely to Selenium Manager (built into
+    Selenium since 4.6): omitting a driver executable_path lets Selenium
+    detect the installed browser, download a matching driver, cache it, and
+    set correct permissions on its own. No manual download/extract/chmod/
+    retry logic lives here anymore - see issue #93 for the migration and its
+    test matrix.
+
     Args:
-        user_browser (str): The name of the browser ('firefox' or 'chrome') to use.
+        user_browser (str): The name of the browser ('firefox', 'chrome', or 'edge') to use.
         use_debug (bool): Whether to enable debug mode or not.
 
     Returns:
         Tuple: A tuple containing the webdriver instance and a boolean indicating
                whether the driver was successfully loaded or not.
-
-    Raises:
-        WebDriverException: If the webdriver for the specified browser could not be loaded.
-
     """
     driver = None
     is_driver_loaded: bool = False
@@ -299,41 +79,24 @@ def setup_browser(user_browser, use_debug):
 
     if user_browser == 'firefox':
         from selenium.webdriver.firefox.options import Options as FirefoxOptions
-        from selenium.webdriver.firefox.service import Service as FirefoxService
 
         browser_options = FirefoxOptions()
         browser_options.log.level = "trace"
         if use_debug is False:
             browser_options = browser_debugging_options(browser_options, user_browser)
         if os_info.which_os() == 'linux':
-            driver_executable, binary_location = gecko_from_snap()
+            _, binary_location = gecko_from_snap()
             if binary_location is not None:
                 browser_options.binary_location = binary_location
-            else:
-                driver_executable = verify_drivers('firefox')
         else:
-            firefox_binary_path = constants.firefox_binary_location[operating_system]
-            browser_options.binary_location = firefox_binary_path
-            driver_executable = verify_drivers('firefox')
-        firefox_service = FirefoxService(executable_path=driver_executable)
+            browser_options.binary_location = constants.firefox_binary_location[operating_system]
         try:
-            driver = webdriver.Firefox(service=firefox_service, options=browser_options)
+            driver = webdriver.Firefox(options=browser_options)
             is_driver_loaded = True
         except se.WebDriverException as e:
-            log_stream.critical(str(e))
-            # A stale or broken driver on disk still fails, so always fetch a
-            # fresh one on the retry rather than reusing whatever is present
-            log_stream.info('Attempting to download the latest geckodriver')
-            download_gecko_driver()
-            firefox_service = FirefoxService(executable_path=driver_executable)
-            try:
-                driver = webdriver.Firefox(service=firefox_service, options=browser_options)
-                is_driver_loaded = True
-            except se.WebDriverException as missing_browser_driver_error:
-                missing_browser_message(user_browser, missing_browser_driver_error)
+            missing_browser_message(user_browser, e)
     elif user_browser == 'chrome':
         from selenium.webdriver.chrome.options import Options as ChromeOptions
-        from selenium.webdriver.chrome.service import Service as ChromeService
         browser_options = ChromeOptions()
         if use_debug is False:
             browser_options = browser_debugging_options(browser_options, user_browser)
@@ -341,8 +104,6 @@ def setup_browser(user_browser, use_debug):
         # Suppress browser internal error messages
         browser_options.add_argument("--log-level=3")
         browser_options.add_argument("--disable-usb-keyboard-detect")
-        driver_executable = verify_drivers('chrome')
-        chrome_service = ChromeService(executable_path=driver_executable)
         if operating_system == 'windows':
             try:
                 browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
@@ -351,23 +112,12 @@ def setup_browser(user_browser, use_debug):
             # Chrome on Win32 requires basic authentication on PING page, prior to form authentication
             # first_page = first_page[0:8] + username + ':' + password + '@' + first_page[8:]
         try:
-            driver = webdriver.Chrome(service=chrome_service, options=browser_options)
+            driver = webdriver.Chrome(options=browser_options)
             is_driver_loaded = True
         except se.WebDriverException as e:
-            log_stream.critical(str(e))
-            # A stale or broken driver on disk still fails, so always fetch a
-            # fresh one on the retry rather than reusing whatever is present
-            log_stream.info('Attempting to download the latest chromedriver')
-            download_chromedriver()
-            chrome_service = ChromeService(executable_path=driver_executable)
-            try:
-                driver = webdriver.Chrome(service=chrome_service, options=browser_options)
-                is_driver_loaded = True
-            except se.WebDriverException as missing_browser_driver_error:
-                missing_browser_message(user_browser, missing_browser_driver_error)
+            missing_browser_message(user_browser, e)
     elif user_browser == 'edge':
         from selenium.webdriver.edge.options import Options as EdgeOptions
-        from selenium.webdriver.edge.service import Service as EdgeService
         browser_options = EdgeOptions()
         if use_debug is False:
             browser_options = browser_debugging_options(browser_options, user_browser)
@@ -375,26 +125,14 @@ def setup_browser(user_browser, use_debug):
         # Suppress browser internal error messages
         browser_options.add_argument("--log-level=3")
         browser_options.add_argument("--disable-usb-keyboard-detect")
-        driver_executable = verify_drivers('edge')
-        edge_service = EdgeService(executable_path=driver_executable)
         if operating_system == 'windows':
             try:
                 browser_options.add_experimental_option('excludeSwitches', ['enable-logging'])
             except se.NoSuchAttributeException:
                 log_stream.info('Unable to add Experimental Options')
         try:
-            driver = webdriver.Edge(service=edge_service, options=browser_options)
+            driver = webdriver.Edge(options=browser_options)
             is_driver_loaded = True
         except se.WebDriverException as e:
-            log_stream.critical(str(e))
-            # A stale or broken driver on disk still fails, so always fetch a
-            # fresh one on the retry rather than reusing whatever is present
-            log_stream.info('Attempting to download the latest msedgedriver')
-            download_edgedriver()
-            edge_service = EdgeService(executable_path=driver_executable)
-            try:
-                driver = webdriver.Edge(service=edge_service, options=browser_options)
-                is_driver_loaded = True
-            except se.WebDriverException as missing_browser_driver_error:
-                missing_browser_message(user_browser, missing_browser_driver_error)
+            missing_browser_message(user_browser, e)
     return driver, is_driver_loaded
