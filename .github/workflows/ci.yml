@@ -1,0 +1,41 @@
+name: CI
+
+# Smoke checks on every PR against main - catches exactly the class of bug
+# that slipped into main via #89 (a release workflow step that only failed
+# once a real tag was pushed, because nothing validated the PR itself).
+# Deliberately lightweight: this is a fast sanity gate, not a full quality
+# bar. See .github/workflows/release.yml for the tag-triggered release flow.
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  smoke-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify dependencies resolve and install cleanly
+        run: uv sync
+
+      - name: Compile check
+        run: uv run python -m py_compile *.py
+
+      - name: Run tests
+        run: |
+          if ls test_*.py *_test.py tests/test_*.py >/dev/null 2>&1; then
+            uv run pytest -q
+          else
+            echo "No test files present yet, skipping"
+          fi
