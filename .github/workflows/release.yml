@@ -1,0 +1,71 @@
+name: Release
+
+# Publishes a GitHub Release for a tagged commit. This intentionally does NOT
+# build or attach a compiled binary - the tool is a plain Python script meant
+# to be downloaded as source and run the same way on Linux, Windows, WSL, and
+# macOS (`python getCredentials.py --profile ...`). Testers get a stable,
+# versioned download point via the Release's auto-generated source archive
+# instead of tracking `main` directly.
+
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re-)publish a release for'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.name }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify dependency lockfile resolves
+        run: uv sync --locked
+
+      - name: Compile check
+        run: uv run python -m py_compile *.py
+
+      - name: Verify internal version matches tag
+        run: |
+          internal_version=$(uv run python -c "import constants; print(constants.__version__)")
+          tag_version="${{ steps.tag.outputs.name }}"
+          if [ "$internal_version" != "$tag_version" ]; then
+            echo "::error::constants.__version__ ($internal_version) does not match tag ($tag_version). Update constants.py before tagging."
+            exit 1
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.tag.outputs.name }}" \
+            --title "${{ steps.tag.outputs.name }}" \
+            --generate-notes \
+            --repo "${{ github.repository }}"
