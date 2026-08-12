@@ -20,13 +20,13 @@ def missing_config_file_message():
         "This file contains ini style configuration sections containing information about the accounts you are trying to access.\n"
         "For example:\n"
         "\t[cloud1-prod]\n"
-        "\tawsRegion = us-east-1\n"
+        "\tawsregion = us-east-1\n"
         "\taccount_number =\n"
-        "\tIAMRole = PING-DevOps\n"
-        "\tsamlProvider = PING\n"
+        "\tiamrole = PING-DevOps\n"
+        "\tsamlprovider = PING\n"
         "\tusername=adUsername\n"
-        "\tguiName=production\n"
-        "\tsessionDuration=14400\n"
+        "\tguiname=production\n"
+        "\tsessionduration=14400\n"
         "\nThe configuration must also contain a section for the Authentication provider you are using, ie: PING. "
         "Each provider section name must be prefixed with 'Fed-'\n"
         "For example:\n"
@@ -223,7 +223,7 @@ class Config:
         
         browser = self._get_config_value('global', 'browser')
         session_duration = self._get_config_value('global', 'sessionduration', 0)
-        saved_password = self._get_config_value('global', 'savedPassword')
+        saved_password = self._get_config_value('global', 'savedpassword')
         username = self._get_config_value('global', 'username')
         aws_region = self._get_config_value('global', 'awsregion')
         saml_provider = self._get_config_value('global', 'samlprovider')
@@ -249,7 +249,7 @@ class Config:
 
         if text_menu is False and aws_profile_name is not None:
             try:
-                self.configSAML.has_option(aws_profile_name, 'samlProvider')
+                self.configSAML.has_option(aws_profile_name, 'samlprovider')
             except configparser.NoSectionError as e:
                 log_stream.fatal(f'No such AWS profile {aws_profile_name}')
                 raise SystemExit(1)
@@ -257,19 +257,19 @@ class Config:
             log_stream.info(f'Reading configuration info for profile {aws_profile_name}')
             profile = self.configSAML[aws_profile_name]
             try:
-                aws_region = profile.get('awsRegion', fallback=aws_region)
+                aws_region = profile.get('awsregion', fallback=aws_region)
             except KeyError:
                 aws_region = None
 
-            if session_duration == 0: 
-                session_duration = profile.get('sessionDuration','3600')
+            if session_duration == 0:
+                session_duration = profile.get('sessionduration','3600')
 
             try:
-                account_number = profile.get('accountNumber')
-                iam_role = profile.get('IAMRole')
-                saml_provider = profile.get('samlProvider', fallback=saml_provider)
+                account_number = profile.get('accountnumber')
+                iam_role = profile.get('iamrole')
+                saml_provider = profile.get('samlprovider', fallback=saml_provider)
                 username = profile.get('username', fallback=username)
-                gui_name = profile.get('guiName')
+                gui_name = profile.get('guiname')
             except KeyError as missing_config_error:
                 missing_config_property: str = missing_config_error.args[0]
                 log_stream.fatal(f'Missing configuration property: {missing_config_property}')
@@ -422,8 +422,8 @@ class Config:
             try:
                 self.configSAML['global']['browser'] = str(browser_type)
                 self.configSAML['global']['username'] = str(username)
-                self.configSAML['global']['awsRegion'] = str(aws_region)
-                self.configSAML['global']['sessionDuration'] = str(aws_session_duration)
+                self.configSAML['global']['awsregion'] = str(aws_region)
+                self.configSAML['global']['sessionduration'] = str(aws_session_duration)
             except TypeError as e:
                 log_stream.warning(f'Error updating global config: {e}')
         else:
