@@ -89,7 +89,9 @@ def setup_browser(user_browser, use_debug):
             if binary_location is not None:
                 browser_options.binary_location = binary_location
         else:
-            browser_options.binary_location = constants.firefox_binary_location[operating_system]
+            binary_location = constants.firefox_binary_location.get(operating_system)
+            if binary_location is not None and Path(binary_location).is_file():
+                browser_options.binary_location = binary_location
         try:
             driver = webdriver.Firefox(options=browser_options)
             is_driver_loaded = True
