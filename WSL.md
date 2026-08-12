@@ -82,8 +82,59 @@ echo $DISPLAY $WAYLAND_DISPLAY
 
 If both are empty, `--debug` will fail to open a window; headless mode is unaffected.
 
+## Corporate TLS-inspecting proxies (e.g. Cisco Umbrella): Chrome shows "Privacy error", Firefox doesn't
+
+If your machine sits behind a TLS-inspecting security proxy (Cisco Umbrella and similar secure web gateways are the common case), outbound HTTPS connections get re-signed in transit with the proxy's own MITM certificate. The smoke test surfaces this as a failed title check on Chrome:
+
+```
+chrome (headless)  FAIL  unexpected title="Privacy error"
+```
+
+Firefox, run against the same URL, usually doesn't show this. That's not because Firefox is somehow bypassing the proxy — it's getting the same re-signed certificate. The difference is which trust store each browser checks on Linux:
+
+- **Firefox** (the Debian/Ubuntu apt package) is built to also consult the **system NSS trust store** via `p11-kit`. Any CA present in `/etc/ssl/certs` (including one added by IT provisioning, or by `update-ca-certificates`) is trusted automatically.
+- **Chrome / Chrome for Testing** (what Selenium Manager downloads) verifies certificates against its own built-in **Chrome Root Store** on Linux and does not read `/etc/ssl/certs`. A CA has to be imported into Chrome's own NSS user database to be trusted.
+
+### Fix: trust the proxy's root CA in both stores
+
+1. Export the proxy's root CA as Base64 `.crt`. On the Windows host: `certmgr.msc` → *Trusted Root Certification Authorities* → find the entry (e.g. "Cisco Umbrella") → export → Base64 X.509. Copy the file into WSL.
+
+2. System-wide trust (covers Firefox, curl, wget, Python `requests`, etc.):
+
+   ```bash
+   sudo cp umbrella-root.crt /usr/local/share/ca-certificates/umbrella-root.crt
+   sudo update-ca-certificates
+   ```
+
+3. Chrome-specific trust (Chrome Root Store ignores step 2 on Linux):
+
+   ```bash
+   sudo apt install -y libnss3-tools
+   certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n "Cisco Umbrella Root CA" -i umbrella-root.crt
+   ```
+
+   If that fails with `certutil: function failed: SEC_ERROR_BAD_DATABASE: security library: bad database.`, `~/.pki/nssdb` doesn't exist yet or has no initialized database in it — `-A` can only add to an existing DB, not create one. Chrome normally creates and initializes this directory itself on first launch, so a fresh WSL setup (or one where Chrome-for-Testing hasn't successfully run yet) won't have it. Initialize it explicitly, then retry the import:
+
+   ```bash
+   mkdir -p ~/.pki/nssdb
+   certutil -N -d sql:$HOME/.pki/nssdb --empty-password
+   certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n "Cisco Umbrella Root CA" -i umbrella-root.crt
+   ```
+
+   Verify it landed with `certutil -d sql:$HOME/.pki/nssdb -L` — you should see the cert listed with trust flags `C,,`.
+
+### Is this one-time?
+
+Yes, for a normal persistent WSL setup. `/etc/ssl/certs` and `~/.pki/nssdb` are both part of the distro's filesystem and survive reboots, `wsl --shutdown`, and Selenium Manager downloading newer Chrome-for-Testing builds (the binary has no trust store of its own — it always defers to the Chrome Root Store plus your NSS db).
+
+You'd need to redo it if:
+- The WSL distro is unregistered/reinstalled (`wsl --unregister` wipes the filesystem, including both stores).
+- A different Linux user account runs the tests on the same distro (`~/.pki/nssdb` is per-`$HOME`).
+- The proxy rotates its root/intermediate CA (rare, but the old cert stops matching).
+- The environment is ephemeral (CI runner, disposable container) and doesn't persist `$HOME` between runs.
+
 ## Verified
 
 Tested on Ubuntu 24.04 (WSL2) with the packages above installed, Chrome and Firefox each in both headless and `--debug` mode — all four combinations launch, load a page, and quit cleanly via [Browser.py](Browser.py)'s `setup_browser()`. Chrome ran via Selenium Manager's auto-provisioned Chrome for Testing (no system Chrome installed); Firefox ran as a native apt binary (no snap).
 
-Not covered here: Edge (no supported Linux package) and corporate proxy/firewall behavior around Selenium Manager's driver-download endpoint. See issue [#93](https://github.com/OurGiant/aws-idp-saml/issues/93) for the full cross-platform test matrix.
+Not covered here: Edge (no supported Linux package) and corporate proxy/firewall behavior around Selenium Manager's driver-download endpoint (as opposed to the TLS-inspection case above, which is about page loads, not driver downloads). See issue [#93](https://github.com/OurGiant/aws-idp-saml/issues/93) for the full cross-platform test matrix.
