@@ -2,7 +2,7 @@ import logging
 
 import os
 
-__version__ = '2.2.2'
+__version__ = '2.2.3'
 __timeout__ = int(os.getenv('AWS_SAML_TIMEOUT', 45))  # Configurable timeout in seconds
 __snap_install_dir__ = '/snap/firefox/current/usr/lib/firefox'
 

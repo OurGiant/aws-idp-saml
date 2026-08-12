@@ -110,6 +110,8 @@ Driver management is handled automatically by [Selenium Manager](https://www.sel
 
 Chromium may not be fully supported by the Chrome driver. If you only have Chromium installed, reference the browser as `chrome`.
 
+**Known limitation: Chrome installed via Flatpak.** Selenium Manager can't detect a Flatpak-installed Chrome (it isn't on `PATH` and isn't in any of the well-known install locations Selenium Manager checks), so it falls back to downloading its own separate Chrome for Testing binary instead - the tool still works, it just isn't using your installed Chrome. Manually pointing the browser at the Flatpak wrapper doesn't fix this either: Chrome launches fine, but Flatpak's sandbox gives it a private `/tmp`, so the `DevToolsActivePort` file chromedriver waits for on the host is written inside the sandbox instead, and the session times out with `session not created: DevToolsActivePort file doesn't exist`. Fixing that would require loosening the Flatpak app's sandbox permissions (e.g. `flatpak override --user com.google.Chrome --filesystem=/tmp`), which is a system-level change outside what this tool does on its own - if you're on a Flatpak-only Chrome system (common on Pop!_OS/System76), either use Firefox, install Chrome outside Flatpak, or apply that override yourself.
+
 ## Configuration
 
 The utility reads its configuration from `~/.aws/samlsts`. This is an INI-style file with three types of sections: a provider section, profile sections, and an optional global section.
