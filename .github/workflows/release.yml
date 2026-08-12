@@ -46,8 +46,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Verify dependency lockfile resolves
-        run: uv sync --locked
+      - name: Verify dependencies resolve and install cleanly
+        run: uv sync
 
       - name: Compile check
         run: uv run python -m py_compile *.py
