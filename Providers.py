@@ -15,6 +15,9 @@ log_stream = Logging('providers')
 
 saml_page_title = "Amazon Web Services Sign-In"
 mfa_screen_indicator = 'class="button select-factor link-button"'
+# Okta's own heading text for this screen (#95) - a more stable signal than guessing at
+# form/field markup we haven't observed in this tool's own driver against a real occurrence yet.
+forced_password_reset_indicator = "Reset your Okta password"
 xpath_locator = By.XPATH
 class_name_locator = By.CLASS_NAME
 id_locator = By.ID
@@ -99,6 +102,32 @@ def check_for_intermediate_verify_screen(driver, wait):
         log_stream.warning(f'Error checking for intermediate screen: {str(e)}')
         # On any error, assume we're not on intermediate screen and continue normal flow
         return False, None
+
+def check_for_forced_password_reset_screen(driver, wait):
+    """
+    Check whether Okta interrupted the login with a forced "Reset your Okta password"
+    screen instead of proceeding to MFA (#95). Unlike check_for_mfa_screen /
+    check_for_intermediate_verify_screen, there's no known gating element to wait on
+    first, so this polls the page source directly for the screen's heading text.
+
+    Args:
+        driver: Selenium WebDriver instance
+        wait: WebDriverWait instance
+
+    Returns:
+        bool: True if the forced password-reset screen was detected
+    """
+    try:
+        helper = SeleniumHelper(driver, wait)
+        if helper.poll_page_source_with_backoff(forced_password_reset_indicator, max_total_seconds=5,
+                                                  label="forced password-reset screen indicator"):
+            log_stream.warning('Forced Okta password-reset screen detected after primary authentication')
+            ScreenshotRecorder.capture(driver, "forced_password_reset_screen")
+            return True
+        return False
+    except Exception as e:
+        log_stream.warning(f'Error checking for forced password-reset screen: {str(e)}')
+        return False
 
 def click_use_password(wait, driver):
     """Click the Okta FastPass button."""
@@ -261,6 +290,11 @@ class UseIdP:
                 ScreenshotRecorder.capture(driver, "password_entry_failed")
                 saml_response = "CouldNotEnterFormData"
                 return saml_response
+
+            if check_for_forced_password_reset_screen(driver, wait):
+                log_stream.fatal('Your Okta password needs to be reset before you can sign in')
+                log_stream.info('Please log in to Okta via your browser to reset your password, then try again')
+                raise SystemExit(1)
 
             if use_okta_fastpass is True:
                 saml_response = click_okta_fastpass(wait, driver)
