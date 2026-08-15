@@ -451,6 +451,8 @@ To add support for another provider, implement a new static method in the `Provi
 
 ## Troubleshooting
 
+- If login fails with `Your Okta password needs to be reset before you can sign in`, your IdP is forcing a password reset — log in to Okta via your browser to complete the reset, then try again
+
 If you have issues, please create an issue on the project: [https://github.com/OurGiant/aws-idp-saml/issues](https://github.com/OurGiant/aws-idp-saml/issues)
 
 ## Contributing
